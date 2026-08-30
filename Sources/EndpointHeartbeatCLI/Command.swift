@@ -24,14 +24,15 @@ enum EndpointHeartbeatCommand {
             let configuration = try ConfigurationLoader.load(from: configURL(in: arguments))
             let results = await Heartbeat.checkAll(configuration.endpoints)
             for result in results {
-                let marker = result.passed ? "PASS" : "FAIL"
-                print("[\(marker)] \(result.endpoint.name): \(result.observedOutcome.description) (expected \(result.endpoint.expectedOutcome.rawValue))")
+                let marker = result.passed ? "✓" : "✗"
+                print("\(marker) \(result.endpoint.name): \(result.observedOutcome.description) (expected \(result.endpoint.expectedOutcome.rawValue))")
                 for warning in result.warnings {
-                    print("  WARNING: \(warning.description)")
+                    print("  ⚠ \(warning.description)")
                 }
             }
             let failures = results.filter { !$0.passed }.count
-            print("\n\(results.count - failures)/\(results.count) checks passed")
+            let marker = failures == 0 ? "✓" : "✗"
+            print("\n\(marker) \(results.count - failures)/\(results.count) checks passed")
             if failures > 0 { exit(EXIT_FAILURE) }
 
         case "validate":

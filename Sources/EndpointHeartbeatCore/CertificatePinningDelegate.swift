@@ -92,7 +92,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
             return .failure("certificate pin \(retired.id) retired on \(ISO8601DateFormatter().string(from: retired.retireAfter!))")
         }
         guard !matches.retiring.isEmpty else {
-            let actual = observed.map { "\($0.role.rawValue) SHA-256 \($0.sha256)" }.joined(separator: "; ")
+            let actual = observedHashes(in: observed).joined(separator: "; ")
             return .failure("no configured certificate pin matched: \(actual)")
         }
 
@@ -135,6 +135,17 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
             candidate.role == pin.role && candidate.state == .active
                 && CertificateHash.normalised(candidate.sha256, encoding: candidate.encoding)
                     != CertificateHash.normalised(pin.sha256, encoding: pin.encoding)
+        }
+    }
+
+    private func observedHashes(in observed: [ObservedCertificate]) -> [String] {
+        var reported = Set<String>()
+        return pins.flatMap { pin in
+            observed.filter { $0.role == pin.role }.compactMap { certificate in
+                let hash = CertificateHash.encoded(certificate.sha256, as: pin.encoding)
+                let value = "\(pin.role.rawValue) SHA-256 (\(pin.encoding.rawValue)) was \(hash)"
+                return reported.insert(value).inserted ? value : nil
+            }
         }
     }
 

@@ -13,6 +13,7 @@ struct EndpointHeartbeatCoreTests {
         #expect(CertificateHash.normalised("ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=", encoding: .base64) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
         #expect(CertificateHash.normalised("00:11:invalid", encoding: .hexadecimal) == "")
         #expect(CertificateHash.normalised(hexadecimal, encoding: .base64) == "")
+        #expect(CertificateHash.encoded(hexadecimal, as: .base64) == "qrsBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=")
     }
 
     @Test("certificate data produces a lowercase SHA-256 hash")

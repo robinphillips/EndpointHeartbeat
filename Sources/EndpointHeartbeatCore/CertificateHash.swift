@@ -17,6 +17,14 @@ public enum CertificateHash {
         return hexadecimalString(for: digest)
     }
 
+    static func encoded(_ hash: String, as encoding: CertificateHashEncoding) -> String {
+        guard let bytes = bytes(from: hash, encoding: .hexadecimal) else { return "" }
+        return switch encoding {
+        case .hexadecimal: hexadecimalString(for: bytes)
+        case .base64: bytes.base64EncodedString()
+        }
+    }
+
     private static func bytes(from hash: String, encoding: CertificateHashEncoding) -> Data? {
         let candidate = hash.trimmingCharacters(in: .whitespacesAndNewlines)
 
