@@ -60,7 +60,7 @@ public enum ConfigurationError: Error, CustomStringConvertible {
         case .empty: "configuration contains no endpoints"
         case let .duplicateName(name): "endpoint name is duplicated: \(name)"
         case let .nonHTTPSURL(name): "endpoint must use HTTPS: \(name)"
-        case let .invalidHash(name): "rootSHA256 must contain 64 hexadecimal characters: \(name)"
+        case let .invalidHash(name): "rootSHA256 must be a SHA-256 hash encoded as hexadecimal or Base64: \(name)"
         case let .noStatusCodes(name): "acceptableStatusCodes is empty: \(name)"
         }
     }
@@ -85,8 +85,7 @@ public enum ConfigurationLoader {
             guard endpoint.url.scheme?.lowercased() == "https" else {
                 throw ConfigurationError.nonHTTPSURL(endpoint.name)
             }
-            guard CertificateHash.normalised(endpoint.rootSHA256).count == 64,
-                  CertificateHash.normalised(endpoint.rootSHA256).allSatisfy(\.isHexDigit) else {
+            guard !CertificateHash.normalised(endpoint.rootSHA256).isEmpty else {
                 throw ConfigurationError.invalidHash(endpoint.name)
             }
             guard !endpoint.acceptableStatusCodes.isEmpty else {

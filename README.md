@@ -38,6 +38,8 @@ The included configuration is runnable: it checks a Let's Encrypt test endpoint 
 
 `expectedOutcome` defaults to `success`. `acceptableStatusCodes` defaults to every status from 200 through 299.
 
+`rootSHA256` accepts 64 hexadecimal characters, colon-separated hexadecimal byte pairs, or standard Base64 for the 32-byte hash.
+
 ## Commands
 
 ```sh

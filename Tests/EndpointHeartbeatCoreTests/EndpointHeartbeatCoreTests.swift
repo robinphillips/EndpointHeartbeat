@@ -4,9 +4,14 @@ import Security
 import Testing
 
 struct EndpointHeartbeatCoreTests {
-    @Test("certificate hashes discard separators and normalize casing")
+    @Test("certificate hashes normalize strict hexadecimal and Base64 encodings")
     func normalisesCertificateHashes() {
-        #expect(CertificateHash.normalised("AA:bb 01-2F") == "aabb012f")
+        let hexadecimal = "aabb" + String(repeating: "01", count: 30)
+        let colonSeparated = (["AA", "bb"] + Array(repeating: "01", count: 30)).joined(separator: ":")
+
+        #expect(CertificateHash.normalised(colonSeparated) == hexadecimal)
+        #expect(CertificateHash.normalised("ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        #expect(CertificateHash.normalised("00:11:invalid") == "")
     }
 
     @Test("certificate data produces a lowercase SHA-256 hash")
