@@ -14,7 +14,7 @@ permissions:
 jobs:
   heartbeat:
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
       - name: Run unit tests
