@@ -22,6 +22,7 @@ The included configuration is runnable: it checks a Let's Encrypt test endpoint 
       "name": "Production API",
       "url": "https://api.example.com/health",
       "rootSHA256": "0123456789abcdef...",
+      "rootSHA256Encoding": "hexadecimal",
       "expectedOutcome": "success",
       "acceptableStatusCodes": [200, 204]
     },
@@ -29,6 +30,7 @@ The included configuration is runnable: it checks a Let's Encrypt test endpoint 
       "name": "Deliberately obsolete pin",
       "url": "https://api.example.com/health",
       "rootSHA256": "abcdef...",
+      "rootSHA256Encoding": "hexadecimal",
       "expectedOutcome": "trustFailure",
       "acceptableStatusCodes": [200]
     }
@@ -38,7 +40,7 @@ The included configuration is runnable: it checks a Let's Encrypt test endpoint 
 
 `expectedOutcome` defaults to `success`. `acceptableStatusCodes` defaults to every status from 200 through 299.
 
-`rootSHA256` accepts 64 hexadecimal characters, colon-separated hexadecimal byte pairs, or standard Base64 for the 32-byte hash.
+Set `rootSHA256Encoding` to `hexadecimal` or `base64`. Hexadecimal values may be 64 characters or 32 colon-separated byte pairs; Base64 values must decode to 32 bytes.
 
 ## Commands
 

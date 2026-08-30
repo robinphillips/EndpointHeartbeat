@@ -3,8 +3,8 @@ import Foundation
 import Security
 
 public enum CertificateHash {
-    public static func normalised(_ hash: String) -> String {
-        guard let bytes = bytes(from: hash) else { return "" }
+    public static func normalised(_ hash: String, encoding: CertificateHashEncoding) -> String {
+        guard let bytes = bytes(from: hash, encoding: encoding) else { return "" }
         return hexadecimalString(for: bytes)
     }
 
@@ -17,16 +17,18 @@ public enum CertificateHash {
         return hexadecimalString(for: digest)
     }
 
-    private static func bytes(from hash: String) -> Data? {
+    private static func bytes(from hash: String, encoding: CertificateHashEncoding) -> Data? {
         let candidate = hash.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let hexadecimalBytes = hexadecimalBytes(from: candidate) {
-            return hexadecimalBytes
-        }
 
-        guard let base64Bytes = Data(base64Encoded: candidate), base64Bytes.count == 32 else {
-            return nil
+        switch encoding {
+        case .hexadecimal:
+            return hexadecimalBytes(from: candidate)
+        case .base64:
+            guard let base64Bytes = Data(base64Encoded: candidate), base64Bytes.count == 32 else {
+                return nil
+            }
+            return base64Bytes
         }
-        return base64Bytes
     }
 
     private static func hexadecimalBytes(from hash: String) -> Data? {

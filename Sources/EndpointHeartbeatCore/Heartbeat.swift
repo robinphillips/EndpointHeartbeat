@@ -9,7 +9,10 @@ public enum Heartbeat {
         _ endpoint: Endpoint,
         sessionConfiguration configuration: URLSessionConfiguration
     ) async -> CheckResult {
-        let delegate = CertificatePinningDelegate(expectedRootHash: endpoint.rootSHA256)
+        let delegate = CertificatePinningDelegate(
+            expectedRootHash: endpoint.rootSHA256,
+            encoding: endpoint.rootSHA256Encoding
+        )
         configuration.timeoutIntervalForRequest = 15
         configuration.timeoutIntervalForResource = 30
         let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)

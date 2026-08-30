@@ -6,8 +6,8 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
     private let lock = NSLock()
     private var storedTrustFailure: String?
 
-    init(expectedRootHash: String) {
-        self.expectedRootHash = CertificateHash.normalised(expectedRootHash)
+    init(expectedRootHash: String, encoding: CertificateHashEncoding) {
+        self.expectedRootHash = CertificateHash.normalised(expectedRootHash, encoding: encoding)
     }
 
     var trustFailure: String? {

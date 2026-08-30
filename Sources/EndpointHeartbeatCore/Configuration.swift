@@ -12,6 +12,7 @@ public struct Endpoint: Codable, Sendable {
     public let name: String
     public let url: URL
     public let rootSHA256: String
+    public let rootSHA256Encoding: CertificateHashEncoding
     public let expectedOutcome: ExpectedOutcome
     public let acceptableStatusCodes: [Int]
 
@@ -19,18 +20,20 @@ public struct Endpoint: Codable, Sendable {
         name: String,
         url: URL,
         rootSHA256: String,
+        rootSHA256Encoding: CertificateHashEncoding = .hexadecimal,
         expectedOutcome: ExpectedOutcome = .success,
         acceptableStatusCodes: [Int] = Array(200..<300)
     ) {
         self.name = name
         self.url = url
         self.rootSHA256 = rootSHA256
+        self.rootSHA256Encoding = rootSHA256Encoding
         self.expectedOutcome = expectedOutcome
         self.acceptableStatusCodes = acceptableStatusCodes
     }
 
     private enum CodingKeys: String, CodingKey {
-        case name, url, rootSHA256, expectedOutcome, acceptableStatusCodes
+        case name, url, rootSHA256, rootSHA256Encoding, expectedOutcome, acceptableStatusCodes
     }
 
     public init(from decoder: Decoder) throws {
@@ -38,6 +41,7 @@ public struct Endpoint: Codable, Sendable {
         name = try values.decode(String.self, forKey: .name)
         url = try values.decode(URL.self, forKey: .url)
         rootSHA256 = try values.decode(String.self, forKey: .rootSHA256)
+        rootSHA256Encoding = try values.decode(CertificateHashEncoding.self, forKey: .rootSHA256Encoding)
         expectedOutcome = try values.decodeIfPresent(ExpectedOutcome.self, forKey: .expectedOutcome) ?? .success
         acceptableStatusCodes = try values.decodeIfPresent([Int].self, forKey: .acceptableStatusCodes) ?? Array(200..<300)
     }
@@ -46,6 +50,11 @@ public struct Endpoint: Codable, Sendable {
 public enum ExpectedOutcome: String, Codable, Sendable {
     case success
     case trustFailure
+}
+
+public enum CertificateHashEncoding: String, Codable, Sendable {
+    case hexadecimal
+    case base64
 }
 
 public enum ConfigurationError: Error, CustomStringConvertible {
@@ -85,7 +94,7 @@ public enum ConfigurationLoader {
             guard endpoint.url.scheme?.lowercased() == "https" else {
                 throw ConfigurationError.nonHTTPSURL(endpoint.name)
             }
-            guard !CertificateHash.normalised(endpoint.rootSHA256).isEmpty else {
+            guard !CertificateHash.normalised(endpoint.rootSHA256, encoding: endpoint.rootSHA256Encoding).isEmpty else {
                 throw ConfigurationError.invalidHash(endpoint.name)
             }
             guard !endpoint.acceptableStatusCodes.isEmpty else {

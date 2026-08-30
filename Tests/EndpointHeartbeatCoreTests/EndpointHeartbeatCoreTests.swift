@@ -9,9 +9,10 @@ struct EndpointHeartbeatCoreTests {
         let hexadecimal = "aabb" + String(repeating: "01", count: 30)
         let colonSeparated = (["AA", "bb"] + Array(repeating: "01", count: 30)).joined(separator: ":")
 
-        #expect(CertificateHash.normalised(colonSeparated) == hexadecimal)
-        #expect(CertificateHash.normalised("ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
-        #expect(CertificateHash.normalised("00:11:invalid") == "")
+        #expect(CertificateHash.normalised(colonSeparated, encoding: .hexadecimal) == hexadecimal)
+        #expect(CertificateHash.normalised("ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=", encoding: .base64) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        #expect(CertificateHash.normalised("00:11:invalid", encoding: .hexadecimal) == "")
+        #expect(CertificateHash.normalised(hexadecimal, encoding: .base64) == "")
     }
 
     @Test("certificate data produces a lowercase SHA-256 hash")
@@ -22,11 +23,22 @@ struct EndpointHeartbeatCoreTests {
     @Test("decoded endpoints receive omitted defaults")
     func suppliesConfigurationDefaults() throws {
         let json = """
-        {"endpoints":[{"name":"API","url":"https://example.com","rootSHA256":"\(String(repeating: "0", count: 64))"}]}
+        {"endpoints":[{"name":"API","url":"https://example.com","rootSHA256":"\(String(repeating: "0", count: 64))","rootSHA256Encoding":"hexadecimal"}]}
         """
         let configuration = try JSONDecoder().decode(HeartbeatConfiguration.self, from: Data(json.utf8))
         #expect(configuration.endpoints[0].expectedOutcome == .success)
         #expect(configuration.endpoints[0].acceptableStatusCodes == Array(200..<300))
+    }
+
+    @Test("decoded endpoints require an explicit hash encoding")
+    func requiresExplicitHashEncoding() {
+        let json = """
+        {"endpoints":[{"name":"API","url":"https://example.com","rootSHA256":"\(String(repeating: "0", count: 64))"}]}
+        """
+
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(HeartbeatConfiguration.self, from: Data(json.utf8))
+        }
     }
 
     @Test("trust expectations do not accept transport failures")
@@ -136,7 +148,7 @@ struct EndpointHeartbeatCoreTests {
     func delegatesNonTrustChallengesToDefaultHandling() async {
         let delegates: [URLSessionDelegate] = [
             InspectionDelegate(),
-            CertificatePinningDelegate(expectedRootHash: String(repeating: "0", count: 64))
+            CertificatePinningDelegate(expectedRootHash: String(repeating: "0", count: 64), encoding: .hexadecimal)
         ]
         for delegate in delegates {
             let result = await challengeResult(for: delegate)
@@ -151,10 +163,10 @@ struct EndpointHeartbeatCoreTests {
         let trust = try trustedTrust(for: certificate)
         let expectedHash = CertificateHash.sha256(of: certificate)
 
-        let matchingDelegate = CertificatePinningDelegate(expectedRootHash: expectedHash)
+        let matchingDelegate = CertificatePinningDelegate(expectedRootHash: expectedHash, encoding: .hexadecimal)
         #expect(matchingDelegate.failureMessage(for: trust) == nil)
 
-        let mismatchingDelegate = CertificatePinningDelegate(expectedRootHash: String(repeating: "0", count: 64))
+        let mismatchingDelegate = CertificatePinningDelegate(expectedRootHash: String(repeating: "0", count: 64), encoding: .hexadecimal)
         #expect(mismatchingDelegate.failureMessage(for: trust)?.contains("root SHA-256") == true)
     }
 
