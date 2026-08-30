@@ -11,7 +11,7 @@ Endpoint Heartbeat supports expected successes and expected trust failures. This
 3. Open the Actions tab and run **Endpoint heartbeat** manually.
 4. Replace `Examples/heartbeat.json` with your endpoints and pins.
 
-The included configuration is runnable: it checks a Let's Encrypt test endpoint with one correct and one deliberately incorrect root pin. Continuous integration runs on pushes and pull requests. Endpoint heartbeat runs on pushes to `main`, hourly at 45 minutes past the hour, and manually.
+The included configuration is runnable: it checks a Let's Encrypt test endpoint with one correct and one deliberately incorrect root pin. The **On commit** workflow runs continuous integration and endpoint heartbeat on pushes to `main`; continuous integration also runs on pull requests. Endpoint heartbeat runs hourly at 45 minutes past the hour and manually.
 
 ## Configuration
 
