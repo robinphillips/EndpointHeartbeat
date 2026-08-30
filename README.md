@@ -11,7 +11,7 @@ Endpoint Heartbeat supports expected successes and expected trust failures. This
 3. Open the Actions tab and run **Endpoint heartbeat** manually.
 4. Replace `Examples/heartbeat.json` with your endpoints and pins.
 
-The included configuration is runnable: it checks a Let's Encrypt test endpoint with one correct and one deliberately incorrect root pin. Continuous integration runs on pushes and pull requests. Endpoint heartbeat runs every ten minutes, offset from the hour, and manually.
+The included configuration is runnable: it checks a Let's Encrypt test endpoint with one correct and one deliberately incorrect root pin. Continuous integration runs on pushes and pull requests. Endpoint heartbeat runs hourly at 45 minutes past the hour, and manually.
 
 ## Configuration
 
@@ -96,7 +96,9 @@ swift run endpoint-heartbeat inspect https://api.example.com/health
 
 `validate` decodes the configuration and checks endpoint names, HTTPS URLs, certificate pin IDs, hash encodings, retirement dates, expiry-warning thresholds, and acceptable status codes. It does not make network requests.
 
-`check` validates the configuration, performs one HTTPS request per endpoint, verifies the system trust chain and configured certificate pins, and checks the HTTP status code. It prints `PASS` or `FAIL` for every endpoint, followed by any imminent certificate-expiry warnings.
+`check` validates the configuration, performs one HTTPS request per endpoint, verifies the system trust chain and configured certificate pins, and checks the HTTP status code. It prints a tick or cross for every endpoint, followed by any imminent certificate-expiry warnings.
+
+Pass `--report heartbeat-report.json` to write a machine-readable report, and `--markdown-report heartbeat-report.md` to write a Markdown summary. The scheduled workflow uploads the JSON report as a `heartbeat-report` artifact and adds the Markdown report to the GitHub Actions job summary.
 
 `inspect` displays the evaluated certificate chain, SHA-256 hash, and expiry of every certificate.
 

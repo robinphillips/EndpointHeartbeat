@@ -23,6 +23,13 @@ enum EndpointHeartbeatCommand {
         case "check":
             let configuration = try ConfigurationLoader.load(from: configURL(in: arguments))
             let results = await Heartbeat.checkAll(configuration.endpoints)
+            let report = HeartbeatReport(results: results)
+            if let reportURL = outputURL(for: "--report", in: arguments) {
+                try report.writeJSON(to: reportURL)
+            }
+            if let reportURL = outputURL(for: "--markdown-report", in: arguments) {
+                try report.writeMarkdown(to: reportURL)
+            }
             for result in results {
                 let marker = result.passed ? "✓" : "✗"
                 print("\(marker) \(result.endpoint.name): \(result.observedOutcome.description) (expected \(result.endpoint.expectedOutcome.rawValue))")
@@ -60,9 +67,15 @@ enum EndpointHeartbeatCommand {
     }
 
     private static func configURL(in arguments: [String]) throws -> URL {
-        guard let flagIndex = arguments.firstIndex(of: "--config"),
-              arguments.indices.contains(flagIndex + 1) else {
+        guard let url = outputURL(for: "--config", in: arguments) else {
             throw CLIError.missingConfig
+        }
+        return url
+    }
+
+    private static func outputURL(for flag: String, in arguments: [String]) -> URL? {
+        guard let flagIndex = arguments.firstIndex(of: flag), arguments.indices.contains(flagIndex + 1) else {
+            return nil
         }
         return URL(fileURLWithPath: arguments[flagIndex + 1])
     }
@@ -70,10 +83,72 @@ enum EndpointHeartbeatCommand {
     private static func printUsage() {
         print("""
         Usage:
-          endpoint-heartbeat check --config <file.json>
+          endpoint-heartbeat check --config <file.json> [--report <file.json>] [--markdown-report <file.md>]
           endpoint-heartbeat validate --config <file.json>
           endpoint-heartbeat inspect <https-url>
         """)
+    }
+}
+
+private struct HeartbeatReport: Encodable {
+    let generatedAt: Date
+    let passedChecks: Int
+    let totalChecks: Int
+    let checks: [Check]
+
+    init(results: [CheckResult]) {
+        generatedAt = .now
+        passedChecks = results.filter(\.passed).count
+        totalChecks = results.count
+        checks = results.map(Check.init)
+    }
+
+    func writeJSON(to url: URL) throws {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(self).write(to: url, options: .atomic)
+    }
+
+    func writeMarkdown(to url: URL) throws {
+        let formatter = ISO8601DateFormatter()
+        var lines = [
+            "# Endpoint heartbeat",
+            "",
+            "Generated: \(formatter.string(from: generatedAt))",
+            "",
+            "**\(passedChecks)/\(totalChecks) checks passed**",
+            "",
+            "| Status | Endpoint | Observed | Expected |",
+            "| --- | --- | --- | --- |"
+        ]
+        lines += checks.map { check in
+            "| \(check.passed ? "✅" : "❌") | \(check.name) | \(check.observedOutcome) | \(check.expectedOutcome) |"
+        }
+        for check in checks where !check.warnings.isEmpty {
+            lines.append("")
+            lines.append("## Warnings: \(check.name)")
+            lines += check.warnings.map { "- ⚠️ \($0)" }
+        }
+        try (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    struct Check: Encodable {
+        let name: String
+        let url: URL
+        let passed: Bool
+        let expectedOutcome: String
+        let observedOutcome: String
+        let warnings: [String]
+
+        init(_ result: CheckResult) {
+            name = result.endpoint.name
+            url = result.endpoint.url
+            passed = result.passed
+            expectedOutcome = result.endpoint.expectedOutcome.rawValue
+            observedOutcome = result.observedOutcome.description
+            warnings = result.warnings.map(\.description)
+        }
     }
 }
 
