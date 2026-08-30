@@ -94,6 +94,10 @@ swift run endpoint-heartbeat check --config Examples/heartbeat.json
 swift run endpoint-heartbeat inspect https://api.example.com/health
 ```
 
+`validate` decodes the configuration and checks endpoint names, HTTPS URLs, certificate pin IDs, hash encodings, retirement dates, expiry-warning thresholds, and acceptable status codes. It does not make network requests.
+
+`check` validates the configuration, performs one HTTPS request per endpoint, verifies the system trust chain and configured certificate pins, and checks the HTTP status code. It prints `PASS` or `FAIL` for every endpoint, followed by any imminent certificate-expiry warnings.
+
 `inspect` displays the evaluated certificate chain, SHA-256 hash, and expiry of every certificate.
 
 To calculate a hash from a root certificate file:
