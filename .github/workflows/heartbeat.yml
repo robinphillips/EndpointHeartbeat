@@ -1,0 +1,25 @@
+name: Endpoint heartbeat
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  heartbeat:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run unit tests
+        run: swift test
+      - name: Validate configuration
+        run: swift run endpoint-heartbeat validate --config Examples/heartbeat.json
+      - name: Check endpoints
+        run: swift run -c release endpoint-heartbeat check --config Examples/heartbeat.json
