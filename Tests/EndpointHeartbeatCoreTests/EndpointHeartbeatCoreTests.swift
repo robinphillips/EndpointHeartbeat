@@ -23,7 +23,7 @@ struct EndpointHeartbeatCoreTests {
     @Test("decoded endpoints receive omitted defaults")
     func suppliesConfigurationDefaults() throws {
         let json = """
-        {"endpoints":[{"name":"API","url":"https://example.com","rootSHA256":"\(String(repeating: "0", count: 64))","rootSHA256Encoding":"hexadecimal"}]}
+        {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root","sha256":"\(String(repeating: "0", count: 64))","encoding":"hexadecimal"}]}]}
         """
         let configuration = try JSONDecoder().decode(HeartbeatConfiguration.self, from: Data(json.utf8))
         #expect(configuration.endpoints[0].expectedOutcome == .success)
@@ -33,7 +33,7 @@ struct EndpointHeartbeatCoreTests {
     @Test("decoded endpoints require an explicit hash encoding")
     func requiresExplicitHashEncoding() {
         let json = """
-        {"endpoints":[{"name":"API","url":"https://example.com","rootSHA256":"\(String(repeating: "0", count: 64))"}]}
+        {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root","sha256":"\(String(repeating: "0", count: 64))"}]}]}
         """
 
         #expect(throws: DecodingError.self) {
@@ -67,7 +67,7 @@ struct EndpointHeartbeatCoreTests {
 
     @Test(arguments: [
         ("http://example.com", ConfigurationError.nonHTTPSURL("API")),
-        ("https://example.com", ConfigurationError.invalidHash("API"))
+        ("https://example.com", ConfigurationError.invalidHash(endpoint: "API", id: "root"))
     ])
     func rejectsInvalidEndpointConfiguration(
         urlString: String,
@@ -163,7 +163,7 @@ struct EndpointHeartbeatCoreTests {
         let trust = try trustedTrust(for: certificate)
         let expectedHash = CertificateHash.sha256(of: certificate)
 
-        try await SystemClock.withCurrentDate(Self.validCertificateDate) {
+        await SystemClock.withCurrentDate(Self.validCertificateDate) {
             let matchingDelegate = CertificatePinningDelegate(expectedRootHash: expectedHash, encoding: .hexadecimal)
             #expect(matchingDelegate.failureMessage(for: trust) == nil)
 
@@ -171,10 +171,10 @@ struct EndpointHeartbeatCoreTests {
                 expectedRootHash: String(repeating: "0", count: 64),
                 encoding: .hexadecimal
             )
-            #expect(mismatchingDelegate.failureMessage(for: trust)?.contains("root SHA-256") == true)
+            #expect(mismatchingDelegate.failureMessage(for: trust)?.contains("no configured certificate pin matched") == true)
         }
 
-        try await SystemClock.withCurrentDate(Self.expiredCertificateDate) {
+        await SystemClock.withCurrentDate(Self.expiredCertificateDate) {
             let expiredDelegate = CertificatePinningDelegate(expectedRootHash: expectedHash, encoding: .hexadecimal)
             #expect(expiredDelegate.failureMessage(for: trust) != nil)
         }
@@ -190,8 +190,109 @@ struct EndpointHeartbeatCoreTests {
 
             #expect(certificates.count == 1)
             #expect(certificates[0].position == 0)
+            #expect(certificates[0].role == .root)
             #expect(certificates[0].subject == "example.com")
             #expect(certificates[0].sha256 == CertificateHash.sha256(of: certificate))
+            #expect(certificates[0].notAfter != nil)
+        }
+    }
+
+    @Test("retiring pins require a replacement and retirement date")
+    func validatesRotationConfiguration() {
+        let retiringPin = CertificatePin(
+            id: "old-root",
+            role: .root,
+            sha256: String(repeating: "0", count: 64),
+            encoding: .hexadecimal,
+            state: .retiring
+        )
+        let endpoint = Endpoint(
+            name: "API",
+            url: URL(string: "https://example.com")!,
+            certificates: [retiringPin]
+        )
+        #expect(throws: ConfigurationError.self) {
+            try ConfigurationLoader.validate(.init(endpoints: [endpoint]))
+        }
+    }
+
+    @Test("retiring matching pins silence imminent expiry warnings when replaced")
+    func suppressesRetiringCertificateExpiryWarning() async throws {
+        let certificate = try testCertificate()
+        let hash = CertificateHash.sha256(of: certificate)
+        let delegate = CertificatePinningDelegate(
+            pins: [
+                .init(
+                    id: "old-root",
+                    role: .root,
+                    sha256: hash,
+                    encoding: .hexadecimal,
+                    state: .retiring,
+                    retireAfter: Self.validCertificateDate.addingTimeInterval(3_600)
+                ),
+                .init(
+                    id: "new-root",
+                    role: .root,
+                    sha256: String(repeating: "0", count: 64),
+                    encoding: .hexadecimal
+                )
+            ],
+            expiryWarningDays: 30
+        )
+        let trust = try trustedTrust(for: certificate)
+
+        await SystemClock.withCurrentDate(Self.validCertificateDate) {
+            #expect(delegate.failureMessage(for: trust) == nil)
+            #expect(delegate.warnings.isEmpty)
+        }
+    }
+
+    @Test("active pins report imminent certificate expiry")
+    func reportsCertificateExpiryWarning() async throws {
+        let certificate = try testCertificate()
+        let delegate = CertificatePinningDelegate(
+            pins: [.init(
+                id: "current-root",
+                role: .root,
+                sha256: CertificateHash.sha256(of: certificate),
+                encoding: .hexadecimal
+            )],
+            expiryWarningDays: 30
+        )
+        let trust = try trustedTrust(for: certificate)
+
+        await SystemClock.withCurrentDate(Self.validCertificateDate) {
+            #expect(delegate.failureMessage(for: trust) == nil)
+            #expect(delegate.warnings.count == 1)
+        }
+    }
+
+    @Test("retiring pins fail after their retirement date")
+    func rejectsRetiredCertificatePin() async throws {
+        let certificate = try testCertificate()
+        let delegate = CertificatePinningDelegate(
+            pins: [
+                .init(
+                    id: "old-root",
+                    role: .root,
+                    sha256: CertificateHash.sha256(of: certificate),
+                    encoding: .hexadecimal,
+                    state: .retiring,
+                    retireAfter: Self.validCertificateDate.addingTimeInterval(3_600)
+                ),
+                .init(
+                    id: "new-root",
+                    role: .root,
+                    sha256: String(repeating: "0", count: 64),
+                    encoding: .hexadecimal
+                )
+            ],
+            expiryWarningDays: 30
+        )
+        let trust = try trustedTrust(for: certificate)
+
+        await SystemClock.withCurrentDate(Self.validCertificateDate.addingTimeInterval(7_200)) {
+            #expect(delegate.failureMessage(for: trust)?.contains("old-root retired") == true)
         }
     }
 

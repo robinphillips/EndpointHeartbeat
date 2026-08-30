@@ -10,8 +10,8 @@ public enum Heartbeat {
         sessionConfiguration configuration: URLSessionConfiguration
     ) async -> CheckResult {
         let delegate = CertificatePinningDelegate(
-            expectedRootHash: endpoint.rootSHA256,
-            encoding: endpoint.rootSHA256Encoding
+            pins: endpoint.certificates,
+            expiryWarningDays: endpoint.certificateExpiryWarningDays
         )
         configuration.timeoutIntervalForRequest = 15
         configuration.timeoutIntervalForResource = 30
@@ -21,18 +21,18 @@ public enum Heartbeat {
         do {
             let (_, response) = try await session.data(from: endpoint.url)
             guard let response = response as? HTTPURLResponse else {
-                return CheckResult(endpoint: endpoint, observedOutcome: .transportFailure("response was not HTTP"))
+                return CheckResult(endpoint: endpoint, observedOutcome: .transportFailure("response was not HTTP"), warnings: delegate.warnings)
             }
 
             let outcome: ObservedOutcome = endpoint.acceptableStatusCodes.contains(response.statusCode)
                 ? .success(statusCode: response.statusCode)
                 : .httpFailure(statusCode: response.statusCode)
-            return CheckResult(endpoint: endpoint, observedOutcome: outcome)
+            return CheckResult(endpoint: endpoint, observedOutcome: outcome, warnings: delegate.warnings)
         } catch {
             if let trustFailure = delegate.trustFailure {
-                return CheckResult(endpoint: endpoint, observedOutcome: .trustFailure(trustFailure))
+                return CheckResult(endpoint: endpoint, observedOutcome: .trustFailure(trustFailure), warnings: delegate.warnings)
             }
-            return CheckResult(endpoint: endpoint, observedOutcome: .transportFailure(error.localizedDescription))
+            return CheckResult(endpoint: endpoint, observedOutcome: .transportFailure(error.localizedDescription), warnings: delegate.warnings)
         }
     }
 

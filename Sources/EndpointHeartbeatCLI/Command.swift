@@ -26,6 +26,9 @@ enum EndpointHeartbeatCommand {
             for result in results {
                 let marker = result.passed ? "PASS" : "FAIL"
                 print("[\(marker)] \(result.endpoint.name): \(result.observedOutcome.description) (expected \(result.endpoint.expectedOutcome.rawValue))")
+                for warning in result.warnings {
+                    print("  WARNING: \(warning.description)")
+                }
             }
             let failures = results.filter { !$0.passed }.count
             print("\n\(results.count - failures)/\(results.count) checks passed")
@@ -41,8 +44,10 @@ enum EndpointHeartbeatCommand {
             }
             let certificates = try await CertificateInspector.inspect(url)
             for certificate in certificates {
-                let role = certificate.position == certificates.count - 1 ? "root" : "chain \(certificate.position)"
-                print("\(role): \(certificate.subject)\n  SHA-256: \(certificate.sha256)")
+                print("\(certificate.role.rawValue): \(certificate.subject)\n  SHA-256: \(certificate.sha256)")
+                if let notAfter = certificate.notAfter {
+                    print("  Not after: \(ISO8601DateFormatter().string(from: notAfter))")
+                }
             }
 
         case "help", "--help", "-h":

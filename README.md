@@ -1,6 +1,6 @@
 # Endpoint Heartbeat
 
-A macOS command-line healthcheck for public HTTPS endpoints. It performs Apple's normal hostname and certificate-chain validation, then pins the SHA-256 hash of the evaluated root certificate.
+A macOS command-line healthcheck for public HTTPS endpoints. It performs Apple's normal hostname and certificate-chain validation, then pins configured certificate hashes.
 
 Endpoint Heartbeat supports expected successes and expected trust failures. This allows deliberately obsolete or incorrect pins to act as negative integration tests. DNS failures, timeouts and unexpected HTTP responses never count as expected trust failures.
 
@@ -21,16 +21,30 @@ The included configuration is runnable: it checks a Let's Encrypt test endpoint 
     {
       "name": "Production API",
       "url": "https://api.example.com/health",
-      "rootSHA256": "0123456789abcdef...",
-      "rootSHA256Encoding": "hexadecimal",
+      "certificates": [
+        {
+          "id": "current-root",
+          "role": "root",
+          "sha256": "0123456789abcdef...",
+          "encoding": "hexadecimal",
+          "state": "active"
+        }
+      ],
       "expectedOutcome": "success",
       "acceptableStatusCodes": [200, 204]
     },
     {
       "name": "Deliberately obsolete pin",
       "url": "https://api.example.com/health",
-      "rootSHA256": "abcdef...",
-      "rootSHA256Encoding": "hexadecimal",
+      "certificates": [
+        {
+          "id": "obsolete-root",
+          "role": "root",
+          "sha256": "abcdef...",
+          "encoding": "hexadecimal",
+          "state": "active"
+        }
+      ],
       "expectedOutcome": "trustFailure",
       "acceptableStatusCodes": [200]
     }
@@ -40,7 +54,9 @@ The included configuration is runnable: it checks a Let's Encrypt test endpoint 
 
 `expectedOutcome` defaults to `success`. `acceptableStatusCodes` defaults to every status from 200 through 299.
 
-Set `rootSHA256Encoding` to `hexadecimal` or `base64`. Hexadecimal values may be 64 characters or 32 colon-separated byte pairs; Base64 values must decode to 32 bytes.
+Each endpoint requires at least one `active` certificate pin. `role` is `leaf`, `intermediate`, or `root`; any matching active pin is accepted. Set `encoding` to `hexadecimal` or `base64`. Hexadecimal values may be 64 characters or 32 colon-separated byte pairs; Base64 values must decode to 32 bytes.
+
+Use `state: "retiring"` with an ISO-8601 `retireAfter` date while rotating a pin. A retiring pin is accepted only before that date. `certificateExpiryWarningDays` defaults to `30`; expiring pins emit warnings unless the matching pin is retiring and another active pin exists for the same role.
 
 ## Commands
 
@@ -50,7 +66,7 @@ swift run endpoint-heartbeat check --config Examples/heartbeat.json
 swift run endpoint-heartbeat inspect https://api.example.com/health
 ```
 
-`inspect` displays the evaluated certificate chain and SHA-256 hash of every certificate. Use the final `root` hash in the configuration.
+`inspect` displays the evaluated certificate chain, SHA-256 hash, and expiry of every certificate.
 
 To calculate a hash from a root certificate file:
 
