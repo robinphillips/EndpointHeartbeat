@@ -56,7 +56,35 @@ The included configuration is runnable: it checks a Let's Encrypt test endpoint 
 
 Each endpoint requires at least one `active` certificate pin. `role` is `leaf`, `intermediate`, or `root`; any matching active pin is accepted. Set `encoding` to `hexadecimal` or `base64`. Hexadecimal values may be 64 characters or 32 colon-separated byte pairs; Base64 values must decode to 32 bytes.
 
-Use `state: "retiring"` with an ISO-8601 `retireAfter` date while rotating a pin. A retiring pin is accepted only before that date. `certificateExpiryWarningDays` defaults to `30`; expiring pins emit warnings unless the matching pin is retiring and another active pin exists for the same role.
+`state` defaults to `active`. Use `state: "retiring"` with an ISO-8601 `retireAfter` date while rotating a pin. A retiring pin is accepted only before that date. `certificateExpiryWarningDays` defaults to `30`; expiring pins emit warnings unless the matching pin is retiring and another active pin exists for the same role.
+
+```json
+{
+  "name": "Production API during root rotation",
+  "url": "https://api.example.com/health",
+  "certificateExpiryWarningDays": 30,
+  "certificates": [
+    {
+      "id": "previous-root",
+      "role": "root",
+      "sha256": "old-root-hash...",
+      "encoding": "base64",
+      "state": "retiring",
+      "retireAfter": "2026-12-01T00:00:00Z"
+    },
+    {
+      "id": "replacement-root",
+      "role": "root",
+      "sha256": "new-root-hash...",
+      "encoding": "base64",
+      "state": "active"
+    }
+  ],
+  "acceptableStatusCodes": [200, 204]
+}
+```
+
+After `retireAfter`, a chain matching only `previous-root` fails. Keep the replacement pin active before deploying the retiring pin.
 
 ## Commands
 
