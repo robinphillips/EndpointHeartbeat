@@ -13,10 +13,10 @@ permissions:
 
 jobs:
   heartbeat:
-    runs-on: macos-15
+    runs-on: macos-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Run unit tests
         run: swift test
       - name: Validate configuration
