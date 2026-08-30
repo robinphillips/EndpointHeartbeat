@@ -2,6 +2,8 @@ name: Endpoint heartbeat
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
   schedule:
     - cron: "45 * * * *"
 
