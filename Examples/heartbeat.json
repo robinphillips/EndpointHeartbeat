@@ -9,10 +9,26 @@
       "acceptableStatusCodes": [200]
     },
     {
+      "name": "Let's Encrypt ISRG Root X1 Base64 positive check",
+      "url": "https://valid-isrgrootx1.letsencrypt.org/",
+      "rootSHA256": "lrzsBiZJdvN0YHeazyjFp8/oo8Cq4RqP/O4FwL3fCMY=",
+      "rootSHA256Encoding": "base64",
+      "expectedOutcome": "success",
+      "acceptableStatusCodes": [200]
+    },
+    {
       "name": "Deliberately incorrect root pin",
       "url": "https://valid-isrgrootx1.letsencrypt.org/",
       "rootSHA256": "0000000000000000000000000000000000000000000000000000000000000000",
       "rootSHA256Encoding": "hexadecimal",
+      "expectedOutcome": "trustFailure",
+      "acceptableStatusCodes": [200]
+    },
+    {
+      "name": "Deliberately incorrect Base64 root pin",
+      "url": "https://valid-isrgrootx1.letsencrypt.org/",
+      "rootSHA256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "rootSHA256Encoding": "base64",
       "expectedOutcome": "trustFailure",
       "acceptableStatusCodes": [200]
     }
