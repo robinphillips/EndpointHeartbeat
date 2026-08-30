@@ -4,42 +4,34 @@ import Security
 import Testing
 
 struct EndpointHeartbeatCoreTests {
-    @Test("certificate hashes normalize strict hexadecimal and Base64 encodings")
-    func normalisesCertificateHashes() {
-        let hexadecimal = "aabb" + String(repeating: "01", count: 30)
-        let colonSeparated = (["AA", "bb"] + Array(repeating: "01", count: 30)).joined(separator: ":")
-
-        #expect(CertificateHash.normalised(colonSeparated, encoding: .hexadecimal) == hexadecimal)
-        #expect(CertificateHash.normalised("ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=", encoding: .base64) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
-        #expect(CertificateHash.normalised("00:11:invalid", encoding: .hexadecimal) == "")
-        #expect(CertificateHash.normalised(hexadecimal, encoding: .base64) == "")
-        #expect(CertificateHash.encoded(hexadecimal, as: .base64) == "qrsBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=")
+    @Test("certificate hashes require a 32-byte Base64 value")
+    func validatesBase64CertificateHashes() {
+        #expect(CertificateHash.isValid("ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0="))
+        #expect(!CertificateHash.isValid("00:11:invalid"))
+        #expect(!CertificateHash.isValid("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="))
     }
 
-    @Test("certificate data produces a lowercase SHA-256 hash")
+    @Test("certificate data produces a Base64 SHA-256 hash")
     func hashesCertificateData() {
-        #expect(CertificateHash.sha256(of: Data("abc".utf8)) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        #expect(CertificateHash.sha256(of: Data("abc".utf8)) == "ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=")
     }
 
     @Test("decoded endpoints receive omitted defaults")
     func suppliesConfigurationDefaults() throws {
         let json = """
-        {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root","sha256":"\(String(repeating: "0", count: 64))","encoding":"hexadecimal"}]}]}
+        {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root","sha256":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}]}]}
         """
         let configuration = try JSONDecoder().decode(HeartbeatConfiguration.self, from: Data(json.utf8))
         #expect(configuration.endpoints[0].expectedOutcome == .success)
         #expect(configuration.endpoints[0].acceptableStatusCodes == Array(200..<300))
     }
 
-    @Test("decoded endpoints require an explicit hash encoding")
-    func requiresExplicitHashEncoding() {
+    @Test("decoded endpoints do not require a hash encoding")
+    func doesNotRequireHashEncoding() throws {
         let json = """
-        {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root","sha256":"\(String(repeating: "0", count: 64))"}]}]}
+        {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root","sha256":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}]}]}
         """
-
-        #expect(throws: DecodingError.self) {
-            _ = try JSONDecoder().decode(HeartbeatConfiguration.self, from: Data(json.utf8))
-        }
+        _ = try JSONDecoder().decode(HeartbeatConfiguration.self, from: Data(json.utf8))
     }
 
     @Test("trust expectations do not accept transport failures")
@@ -47,7 +39,7 @@ struct EndpointHeartbeatCoreTests {
         let endpoint = Endpoint(
             name: "API",
             url: URL(string: "https://example.com")!,
-            rootSHA256: String(repeating: "0", count: 64),
+            certificates: [rootPin()],
             expectedOutcome: .trustFailure
         )
         #expect(CheckResult(endpoint: endpoint, observedOutcome: .trustFailure("mismatch")).passed)
@@ -59,7 +51,7 @@ struct EndpointHeartbeatCoreTests {
         let endpoint = Endpoint(
             name: "API",
             url: URL(string: "https://example.com")!,
-            rootSHA256: String(repeating: "0", count: 64)
+            certificates: [rootPin()]
         )
         #expect(throws: ConfigurationError.self) {
             try ConfigurationLoader.validate(.init(endpoints: [endpoint, endpoint]))
@@ -77,7 +69,7 @@ struct EndpointHeartbeatCoreTests {
         let endpoint = Endpoint(
             name: "API",
             url: URL(string: urlString)!,
-            rootSHA256: urlString.hasPrefix("https") ? "invalid" : String(repeating: "0", count: 64)
+            certificates: [rootPin(urlString.hasPrefix("https") ? "invalid" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")]
         )
 
         #expect(throws: ConfigurationError.self) {
@@ -95,7 +87,7 @@ struct EndpointHeartbeatCoreTests {
         let endpoint = Endpoint(
             name: "API",
             url: URL(string: "https://example.com")!,
-            rootSHA256: String(repeating: "0", count: 64),
+            certificates: [rootPin()],
             acceptableStatusCodes: []
         )
         #expect(throws: ConfigurationError.self) {
@@ -149,7 +141,7 @@ struct EndpointHeartbeatCoreTests {
     func delegatesNonTrustChallengesToDefaultHandling() async {
         let delegates: [URLSessionDelegate] = [
             InspectionDelegate(),
-            CertificatePinningDelegate(expectedRootHash: String(repeating: "0", count: 64), encoding: .hexadecimal)
+            CertificatePinningDelegate(expectedRootHash: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
         ]
         for delegate in delegates {
             let result = await challengeResult(for: delegate)
@@ -165,18 +157,17 @@ struct EndpointHeartbeatCoreTests {
         let expectedHash = CertificateHash.sha256(of: certificate)
 
         await SystemClock.withCurrentDate(Self.validCertificateDate) {
-            let matchingDelegate = CertificatePinningDelegate(expectedRootHash: expectedHash, encoding: .hexadecimal)
+            let matchingDelegate = CertificatePinningDelegate(expectedRootHash: expectedHash)
             #expect(matchingDelegate.failureMessage(for: trust) == nil)
 
             let mismatchingDelegate = CertificatePinningDelegate(
-                expectedRootHash: String(repeating: "0", count: 64),
-                encoding: .hexadecimal
+                expectedRootHash: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
             )
             #expect(mismatchingDelegate.failureMessage(for: trust)?.contains("no configured certificate pin matched") == true)
         }
 
         await SystemClock.withCurrentDate(Self.expiredCertificateDate) {
-            let expiredDelegate = CertificatePinningDelegate(expectedRootHash: expectedHash, encoding: .hexadecimal)
+            let expiredDelegate = CertificatePinningDelegate(expectedRootHash: expectedHash)
             #expect(expiredDelegate.failureMessage(for: trust) != nil)
         }
     }
@@ -203,8 +194,7 @@ struct EndpointHeartbeatCoreTests {
         let retiringPin = CertificatePin(
             id: "old-root",
             role: .root,
-            sha256: String(repeating: "0", count: 64),
-            encoding: .hexadecimal,
+            sha256: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
             state: .retiring
         )
         let endpoint = Endpoint(
@@ -227,15 +217,13 @@ struct EndpointHeartbeatCoreTests {
                     id: "old-root",
                     role: .root,
                     sha256: hash,
-                    encoding: .hexadecimal,
                     state: .retiring,
                     retireAfter: Self.validCertificateDate.addingTimeInterval(3_600)
                 ),
                 .init(
                     id: "new-root",
                     role: .root,
-                    sha256: String(repeating: "0", count: 64),
-                    encoding: .hexadecimal
+                    sha256: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
                 )
             ],
             expiryWarningDays: 30
@@ -255,8 +243,7 @@ struct EndpointHeartbeatCoreTests {
             pins: [.init(
                 id: "current-root",
                 role: .root,
-                sha256: CertificateHash.sha256(of: certificate),
-                encoding: .hexadecimal
+                sha256: CertificateHash.sha256(of: certificate)
             )],
             expiryWarningDays: 30
         )
@@ -277,15 +264,13 @@ struct EndpointHeartbeatCoreTests {
                     id: "old-root",
                     role: .root,
                     sha256: CertificateHash.sha256(of: certificate),
-                    encoding: .hexadecimal,
                     state: .retiring,
                     retireAfter: Self.validCertificateDate.addingTimeInterval(3_600)
                 ),
                 .init(
                     id: "new-root",
                     role: .root,
-                    sha256: String(repeating: "0", count: 64),
-                    encoding: .hexadecimal
+                    sha256: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
                 )
             ],
             expiryWarningDays: 30
@@ -301,13 +286,17 @@ struct EndpointHeartbeatCoreTests {
         Endpoint(
             name: urlString,
             url: URL(string: urlString)!,
-            rootSHA256: String(repeating: "0", count: 64),
+            certificates: [rootPin()],
             acceptableStatusCodes: [204]
         )
     }
 
     private static let validCertificateDate = Date(timeIntervalSince1970: 1_788_091_200)
     private static let expiredCertificateDate = Date(timeIntervalSince1970: 1_788_264_000)
+
+    private func rootPin(_ hash: String = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=") -> CertificatePin {
+        .init(id: "root", role: .root, sha256: hash)
+    }
 
     private func mockSessionConfiguration() -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral

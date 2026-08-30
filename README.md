@@ -25,8 +25,7 @@ The included configuration is runnable: it checks a Let's Encrypt test endpoint 
         {
           "id": "current-root",
           "role": "root",
-          "sha256": "0123456789abcdef...",
-          "encoding": "hexadecimal",
+          "sha256": "Base64-encoded-SHA-256...",
           "state": "active"
         }
       ],
@@ -40,8 +39,7 @@ The included configuration is runnable: it checks a Let's Encrypt test endpoint 
         {
           "id": "obsolete-root",
           "role": "root",
-          "sha256": "abcdef...",
-          "encoding": "hexadecimal",
+          "sha256": "Another-Base64-encoded-SHA-256...",
           "state": "active"
         }
       ],
@@ -54,7 +52,7 @@ The included configuration is runnable: it checks a Let's Encrypt test endpoint 
 
 `expectedOutcome` defaults to `success`. `acceptableStatusCodes` defaults to every status from 200 through 299.
 
-Each endpoint requires at least one `active` certificate pin. `role` is `leaf`, `intermediate`, or `root`; any matching active pin is accepted. Set `encoding` to `hexadecimal` or `base64`. Hexadecimal values may be 64 characters or 32 colon-separated byte pairs; Base64 values must decode to 32 bytes.
+Each endpoint requires at least one `active` certificate pin. `role` is `leaf`, `intermediate`, or `root`; any matching active pin is accepted. `sha256` must be Base64-encoded and decode to exactly 32 bytes.
 
 `state` defaults to `active`. Use `state: "retiring"` with an ISO-8601 `retireAfter` date while rotating a pin. A retiring pin is accepted only before that date. `certificateExpiryWarningDays` defaults to `30`; expiring pins emit warnings unless the matching pin is retiring and another active pin exists for the same role.
 
@@ -68,7 +66,6 @@ Each endpoint requires at least one `active` certificate pin. `role` is `leaf`, 
       "id": "previous-root",
       "role": "root",
       "sha256": "old-root-hash...",
-      "encoding": "base64",
       "state": "retiring",
       "retireAfter": "2026-12-01T00:00:00Z"
     },
@@ -76,7 +73,6 @@ Each endpoint requires at least one `active` certificate pin. `role` is `leaf`, 
       "id": "replacement-root",
       "role": "root",
       "sha256": "new-root-hash...",
-      "encoding": "base64",
       "state": "active"
     }
   ],
@@ -94,7 +90,7 @@ swift run endpoint-heartbeat check --config Examples/heartbeat.json
 swift run endpoint-heartbeat inspect https://api.example.com/health
 ```
 
-`validate` decodes the configuration and checks endpoint names, HTTPS URLs, certificate pin IDs, hash encodings, retirement dates, expiry-warning thresholds, and acceptable status codes. It does not make network requests.
+`validate` decodes the configuration and checks endpoint names, HTTPS URLs, certificate pin IDs, Base64 hashes, retirement dates, expiry-warning thresholds, and acceptable status codes. It does not make network requests.
 
 `check` validates the configuration, performs one HTTPS request per endpoint, verifies the system trust chain and configured certificate pins, and checks the HTTP status code. It prints a tick or cross for every endpoint, followed by any imminent certificate-expiry warnings.
 

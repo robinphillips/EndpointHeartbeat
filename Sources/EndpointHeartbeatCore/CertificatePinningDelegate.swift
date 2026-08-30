@@ -1,17 +1,6 @@
 import Foundation
 import Security
 
-public enum CertificateWarning: Equatable, Sendable {
-    case expiring(pinID: String, role: CertificateRole, notAfter: Date)
-
-    public var description: String {
-        switch self {
-        case let .expiring(pinID, role, notAfter):
-            "certificate pin \(pinID) (\(role.rawValue)) expires \(ISO8601DateFormatter().string(from: notAfter))"
-        }
-    }
-}
-
 final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
     private let pins: [CertificatePin]
     private let expiryWarningDays: Int
@@ -24,9 +13,9 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
         self.expiryWarningDays = expiryWarningDays
     }
 
-    convenience init(expectedRootHash: String, encoding: CertificateHashEncoding) {
+    convenience init(expectedRootHash: String) {
         self.init(
-            pins: [.init(id: "root", role: .root, sha256: expectedRootHash, encoding: encoding)],
+            pins: [.init(id: "root", role: .root, sha256: expectedRootHash)],
             expiryWarningDays: 30
         )
     }
@@ -102,8 +91,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
     private func matchingPins(in observed: [ObservedCertificate], now: Date) -> PinMatches {
         var matches = PinMatches()
         for pin in pins {
-            let expectedHash = CertificateHash.normalised(pin.sha256, encoding: pin.encoding)
-            guard observed.contains(where: { $0.role == pin.role && $0.sha256 == expectedHash }) else { continue }
+            guard observed.contains(where: { $0.role == pin.role && $0.sha256 == pin.sha256 }) else { continue }
             switch pin.state {
             case .active: matches.active.append(pin)
             case .retiring where pin.retireAfter! <= now: matches.retired.append(pin)
@@ -123,7 +111,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
             guard let notAfter = certificate.notAfter, notAfter > now, notAfter <= threshold else { return nil }
             guard let pin = matchedPins.first(where: {
                 $0.role == certificate.role
-                    && CertificateHash.normalised($0.sha256, encoding: $0.encoding) == certificate.sha256
+                    && $0.sha256 == certificate.sha256
             }) else { return nil }
             guard pin.state == .active || !hasActiveReplacement(for: pin) else { return nil }
             return .expiring(pinID: pin.id, role: certificate.role, notAfter: notAfter)
@@ -133,8 +121,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
     private func hasActiveReplacement(for pin: CertificatePin) -> Bool {
         pins.contains { candidate in
             candidate.role == pin.role && candidate.state == .active
-                && CertificateHash.normalised(candidate.sha256, encoding: candidate.encoding)
-                    != CertificateHash.normalised(pin.sha256, encoding: pin.encoding)
+                && candidate.sha256 != pin.sha256
         }
     }
 
@@ -142,8 +129,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
         var reported = Set<String>()
         return pins.flatMap { pin in
             observed.filter { $0.role == pin.role }.compactMap { certificate in
-                let hash = CertificateHash.encoded(certificate.sha256, as: pin.encoding)
-                let value = "\(pin.role.rawValue) SHA-256 (\(pin.encoding.rawValue)) was \(hash)"
+                let value = "\(pin.role.rawValue) SHA-256 was \(certificate.sha256)"
                 return reported.insert(value).inserted ? value : nil
             }
         }
@@ -152,21 +138,4 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
     private func fail(_ message: String) {
         lock.withLock { storedTrustFailure = message }
     }
-}
-
-private enum TrustEvaluation {
-    case success([CertificateWarning])
-    case failure(String)
-}
-
-private struct ObservedCertificate {
-    let role: CertificateRole
-    let sha256: String
-    let notAfter: Date?
-}
-
-private struct PinMatches {
-    var active: [CertificatePin] = []
-    var retiring: [CertificatePin] = []
-    var retired: [CertificatePin] = []
 }
