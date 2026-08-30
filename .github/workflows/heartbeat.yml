@@ -3,7 +3,7 @@ name: Endpoint heartbeat
 on:
   workflow_dispatch:
   schedule:
-    - cron: "3-59/10 * * * *"
+    - cron: "3/10 * * * *"
 
 permissions:
   contents: read
