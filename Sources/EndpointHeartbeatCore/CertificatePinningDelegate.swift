@@ -6,7 +6,10 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
     private let lock = NSLock()
     private var storedTrustFailure: String?
 
-    init(expectedRootHash: String, encoding: CertificateHashEncoding) {
+    init(
+        expectedRootHash: String,
+        encoding: CertificateHashEncoding
+    ) {
         self.expectedRootHash = CertificateHash.normalised(expectedRootHash, encoding: encoding)
     }
 
@@ -35,6 +38,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
     }
 
     func failureMessage(for trust: SecTrust) -> String? {
+        SecTrustSetVerifyDate(trust, SystemClock.now as CFDate)
         var evaluationError: CFError?
         guard SecTrustEvaluateWithError(trust, &evaluationError) else {
             return evaluationError.map(String.init(describing:)) ?? "system trust evaluation failed"

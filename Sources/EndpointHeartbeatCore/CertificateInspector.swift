@@ -49,6 +49,7 @@ final class InspectionDelegate: NSObject, URLSessionDelegate, @unchecked Sendabl
     }
 
     func certificateInfo(for trust: SecTrust) -> [CertificateInfo]? {
+        SecTrustSetVerifyDate(trust, SystemClock.now as CFDate)
         var error: CFError?
         guard SecTrustEvaluateWithError(trust, &error),
               let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate] else {

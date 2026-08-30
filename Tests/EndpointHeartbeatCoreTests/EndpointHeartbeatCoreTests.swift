@@ -1,5 +1,5 @@
 import Foundation
-@testable import EndpointHeartbeatCore
+@_spi(TestSupport) @testable import EndpointHeartbeatCore
 import Security
 import Testing
 
@@ -163,25 +163,36 @@ struct EndpointHeartbeatCoreTests {
         let trust = try trustedTrust(for: certificate)
         let expectedHash = CertificateHash.sha256(of: certificate)
 
-        let matchingDelegate = CertificatePinningDelegate(expectedRootHash: expectedHash, encoding: .hexadecimal)
-        #expect(matchingDelegate.failureMessage(for: trust) == nil)
+        try await SystemClock.withCurrentDate(Self.validCertificateDate) {
+            let matchingDelegate = CertificatePinningDelegate(expectedRootHash: expectedHash, encoding: .hexadecimal)
+            #expect(matchingDelegate.failureMessage(for: trust) == nil)
 
-        let mismatchingDelegate = CertificatePinningDelegate(expectedRootHash: String(repeating: "0", count: 64), encoding: .hexadecimal)
-        #expect(mismatchingDelegate.failureMessage(for: trust)?.contains("root SHA-256") == true)
+            let mismatchingDelegate = CertificatePinningDelegate(
+                expectedRootHash: String(repeating: "0", count: 64),
+                encoding: .hexadecimal
+            )
+            #expect(mismatchingDelegate.failureMessage(for: trust)?.contains("root SHA-256") == true)
+        }
+
+        try await SystemClock.withCurrentDate(Self.expiredCertificateDate) {
+            let expiredDelegate = CertificatePinningDelegate(expectedRootHash: expectedHash, encoding: .hexadecimal)
+            #expect(expiredDelegate.failureMessage(for: trust) != nil)
+        }
     }
 
     @Test("inspection delegates retain evaluated certificate metadata")
     func recordsInspectedCertificates() async throws {
         let certificate = try testCertificate()
         let trust = try trustedTrust(for: certificate)
-        let delegate = InspectionDelegate()
+        try await SystemClock.withCurrentDate(Self.validCertificateDate) {
+            let delegate = InspectionDelegate()
+            let certificates = try #require(delegate.certificateInfo(for: trust))
 
-        let certificates = try #require(delegate.certificateInfo(for: trust))
-
-        #expect(certificates.count == 1)
-        #expect(certificates[0].position == 0)
-        #expect(certificates[0].subject == "example.com")
-        #expect(certificates[0].sha256 == CertificateHash.sha256(of: certificate))
+            #expect(certificates.count == 1)
+            #expect(certificates[0].position == 0)
+            #expect(certificates[0].subject == "example.com")
+            #expect(certificates[0].sha256 == CertificateHash.sha256(of: certificate))
+        }
     }
 
     private func endpoint(for urlString: String) -> Endpoint {
@@ -192,6 +203,9 @@ struct EndpointHeartbeatCoreTests {
             acceptableStatusCodes: [204]
         )
     }
+
+    private static let validCertificateDate = Date(timeIntervalSince1970: 1_788_091_200)
+    private static let expiredCertificateDate = Date(timeIntervalSince1970: 1_788_264_000)
 
     private func mockSessionConfiguration() -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral
