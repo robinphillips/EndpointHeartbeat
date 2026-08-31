@@ -14,7 +14,10 @@ enum SPKIHash {
     }
 
     static func isValidBase64(_ hash: String) -> Bool {
-        Data(base64Encoded: hash)?.count == SHA256.Digest.byteCount
+        guard let decoded = Data(base64Encoded: hash), decoded.count == SHA256.Digest.byteCount else {
+            return false
+        }
+        return decoded.base64EncodedString() == hash
     }
 }
 

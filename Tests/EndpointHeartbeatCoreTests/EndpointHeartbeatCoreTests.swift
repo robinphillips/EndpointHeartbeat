@@ -4,11 +4,18 @@ import Security
 import Testing
 
 struct EndpointHeartbeatCoreTests {
-    @Test("SPKI hashes require a 32-byte Base64 value")
+    @Test("SPKI hashes reject Base64 values with an incorrect decoded length")
     func validatesBase64SPKIHashes() {
         #expect(SPKIHash.isValidBase64("ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0="))
-        #expect(!SPKIHash.isValidBase64("00:11:invalid"))
-        #expect(!SPKIHash.isValidBase64("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="))
+        #expect(!SPKIHash.isValidBase64(Data(repeating: 0, count: 31).base64EncodedString()))
+        #expect(!SPKIHash.isValidBase64(Data(repeating: 0, count: 33).base64EncodedString()))
+    }
+
+    @Test("SPKI hashes reject malformed Base64")
+    func rejectsMalformedBase64SPKIHashes() {
+        let validHash = "ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0="
+        #expect(!SPKIHash.isValidBase64(String(validHash.dropLast()) + "!"))
+        #expect(!SPKIHash.isValidBase64(validHash + "="))
     }
 
     @Test("SPKI data produces a Base64 SHA-256 hash")
@@ -35,9 +42,24 @@ struct EndpointHeartbeatCoreTests {
     @Test("decoded endpoints require explicit SPKI Base64 keys")
     func requiresExplicitSPKIBase64Key() throws {
         let json = """
-        {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root","spkiSHA256Base64":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}]}]}
+        {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root"}]}]}
         """
-        _ = try JSONDecoder().decode(HeartbeatConfiguration.self, from: Data(json.utf8))
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(HeartbeatConfiguration.self, from: Data(json.utf8))
+        }
+    }
+
+    @Test("configuration loading decodes and validates files")
+    func loadsConfigurationFromFile() throws {
+        let url = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("endpoint-heartbeat-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data("""
+        {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root","spkiSHA256Base64":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}]}]}
+        """.utf8).write(to: url)
+
+        let configuration = try ConfigurationLoader.load(from: url)
+        #expect(configuration.endpoints.map(\.name) == ["API"])
     }
 
     @Test("trust expectations do not accept transport failures")
@@ -101,6 +123,63 @@ struct EndpointHeartbeatCoreTests {
         }
     }
 
+    @Test("configuration validation rejects invalid endpoint and pin states")
+    func rejectsAdditionalInvalidConfigurationValues() {
+        let validPin = rootPin()
+        let retiringPin = CertificatePin(
+            id: "retiring",
+            role: .root,
+            spkiSHA256Base64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            state: .retiring,
+            retireAfter: Self.validCertificateDate
+        )
+        let cases: [(Endpoint, String)] = [
+            (
+                .init(name: "No pins", url: URL(string: "https://example.com")!, certificates: []),
+                "endpoint has no certificate pins: No pins"
+            ),
+            (
+                .init(name: "Negative warning", url: URL(string: "https://example.com")!, certificates: [validPin], certificateExpiryWarningDays: -1),
+                "certificateExpiryWarningDays must not be negative: Negative warning"
+            ),
+            (
+                .init(name: "No active pin", url: URL(string: "https://example.com")!, certificates: [retiringPin]),
+                "endpoint has no active certificate pin: No active pin"
+            ),
+            (
+                .init(name: "Duplicate pin", url: URL(string: "https://example.com")!, certificates: [validPin, validPin]),
+                "certificate pin ID is duplicated for Duplicate pin: root"
+            ),
+            (
+                .init(
+                    name: "Missing retirement date",
+                    url: URL(string: "https://example.com")!,
+                    certificates: [
+                        validPin,
+                        .init(
+                            id: "retiring",
+                            role: .root,
+                            spkiSHA256Base64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                            state: .retiring
+                        )
+                    ]
+                ),
+                "retiring certificate pin has no retireAfter date for Missing retirement date: retiring"
+            )
+        ]
+
+        for (endpoint, expectedDescription) in cases {
+            do {
+                try ConfigurationLoader.validate(.init(endpoints: [endpoint]))
+                Issue.record("expected validation to reject \(endpoint.name)")
+            } catch let error as ConfigurationError {
+                #expect(error.description == expectedDescription)
+            } catch {
+                Issue.record("unexpected error: \(error)")
+            }
+        }
+    }
+
     @Test(arguments: [
         (ObservedOutcome.success(statusCode: 204), "HTTP 204"),
         (ObservedOutcome.trustFailure("mismatch"), "trust failure: mismatch"),
@@ -109,6 +188,13 @@ struct EndpointHeartbeatCoreTests {
     ])
     func describesObservedOutcomes(outcome: ObservedOutcome, description: String) {
         #expect(outcome.description == description)
+    }
+
+    @Test(arguments: [
+        (CertificateWarning.expiring(pinID: "root", role: .root, notAfter: Date(timeIntervalSince1970: 0)), "certificate pin root (root) expires 1970-01-01T00:00:00Z")
+    ])
+    func describesCertificateWarnings(warning: CertificateWarning, description: String) {
+        #expect(warning.description == description)
     }
 
     @Test("HTTP checks classify accepted, rejected, non-HTTP, and transport responses")
@@ -225,11 +311,12 @@ struct EndpointHeartbeatCoreTests {
             #expect(certificates[0].role == .root)
             #expect(certificates[0].subject == "example.com")
             #expect(certificates[0].spkiSHA256Base64 == SPKIHash.sha256Base64(of: certificate))
+            #expect(certificates[0].notBefore != nil)
             #expect(certificates[0].notAfter != nil)
         }
     }
 
-    @Test("retiring pins require a replacement and retirement date")
+    @Test("retiring pins require a retirement date")
     func validatesRotationConfiguration() {
         let retiringPin = CertificatePin(
             id: "old-root",
@@ -240,10 +327,15 @@ struct EndpointHeartbeatCoreTests {
         let endpoint = Endpoint(
             name: "API",
             url: URL(string: "https://example.com")!,
-            certificates: [retiringPin]
+            certificates: [rootPin(), retiringPin]
         )
-        #expect(throws: ConfigurationError.self) {
+        do {
             try ConfigurationLoader.validate(.init(endpoints: [endpoint]))
+            Issue.record("expected validation to reject a missing retirement date")
+        } catch let error as ConfigurationError {
+            #expect(error.description == "retiring certificate pin has no retireAfter date for API: old-root")
+        } catch {
+            Issue.record("unexpected error: \(error)")
         }
     }
 
