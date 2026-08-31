@@ -30,20 +30,21 @@ struct HeartbeatReport: Encodable {
             "",
             "**\(passedChecks)/\(totalChecks) checks passed**",
         ]
-        var groups: [(host: String, checks: [HeartbeatReportCheck])] = []
+        var groups: [(title: String, host: String, checks: [HeartbeatReportCheck])] = []
         for check in checks {
             let host = check.url.host ?? check.url.absoluteString
-            if let index = groups.firstIndex(where: { $0.host == host }) {
+            let title = check.reportGroup ?? displayDomain(for: host)
+            if let index = groups.firstIndex(where: { $0.title == title && $0.host == host }) {
                 groups[index].checks.append(check)
             } else {
-                groups.append((host: host, checks: [check]))
+                groups.append((title: title, host: host, checks: [check]))
             }
         }
         for group in groups {
             let endpoints = Array(Set(group.checks.map { $0.url.absoluteString })).sorted()
             lines += [
                 "",
-                "## \(displayDomain(for: group.host))",
+                "## \(group.title)",
                 "",
                 "Endpoint: \(endpoints.joined(separator: ", "))",
                 "",

@@ -2,6 +2,7 @@ import Foundation
 
 public struct Endpoint: Codable, Sendable {
     public let name: String
+    public let reportGroup: String?
     public let url: URL
     public let certificates: [CertificatePin]
     public let acceptableStatusCodes: [Int]
@@ -9,12 +10,14 @@ public struct Endpoint: Codable, Sendable {
 
     public init(
         name: String,
+        reportGroup: String? = nil,
         url: URL,
         certificates: [CertificatePin],
         acceptableStatusCodes: [Int] = Array(200..<300),
         certificateExpiryWarningDays: Int = 30
     ) {
         self.name = name
+        self.reportGroup = reportGroup
         self.url = url
         self.certificates = certificates
         self.acceptableStatusCodes = acceptableStatusCodes
@@ -22,12 +25,13 @@ public struct Endpoint: Codable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case name, url, certificates, acceptableStatusCodes, certificateExpiryWarningDays
+        case name, reportGroup, url, certificates, acceptableStatusCodes, certificateExpiryWarningDays
     }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         name = try values.decode(String.self, forKey: .name)
+        reportGroup = try values.decodeIfPresent(String.self, forKey: .reportGroup)
         url = try values.decode(URL.self, forKey: .url)
         certificates = try values.decode([CertificatePin].self, forKey: .certificates)
         acceptableStatusCodes = try values.decodeIfPresent([Int].self, forKey: .acceptableStatusCodes) ?? Array(200..<300)

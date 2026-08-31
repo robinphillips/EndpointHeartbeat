@@ -40,6 +40,7 @@ The reusable workflow checks out the caller repository to read its configuration
   "endpoints": [
     {
       "name": "Production API",
+      "reportGroup": "Example service",
       "url": "https://api.example.com/health",
       "certificates": [
         {
@@ -70,6 +71,8 @@ The reusable workflow checks out the caller repository to read its configuration
 ```
 
 Each pin's `expectedOutcome` defaults to `success`. `acceptableStatusCodes` defaults to every status from 200 through 299.
+
+`reportGroup` is optional. It supplies the heading for related checks in the Markdown report; otherwise the report uses the endpoint's domain.
 
 Each endpoint requires at least one `active` certificate pin. `role` is `leaf`, `intermediate`, or `root`; `spkiSHA256Base64` is a Base64-encoded SHA-256 hash of the certificate's DER-encoded SubjectPublicKeyInfo and must decode to exactly 32 bytes. This is the same pin format as Apple's `SPKI-SHA256-BASE64`. Each pin is checked independently; `expectedOutcome` defaults to `success` and can be `trustFailure` for an intentionally unmatched pin.
 

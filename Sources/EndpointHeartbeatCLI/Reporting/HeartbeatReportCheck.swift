@@ -3,6 +3,7 @@ import Foundation
 
 struct HeartbeatReportCheck: Encodable {
     let name: String
+    let reportGroup: String?
     let url: URL
     let passed: Bool
     let expectedOutcome: String
@@ -15,6 +16,7 @@ struct HeartbeatReportCheck: Encodable {
 
     init(_ result: CheckResult) {
         name = result.endpoint.name
+        reportGroup = result.endpoint.reportGroup
         url = result.endpoint.url
         passed = result.passed
         expectedOutcome = result.pin.expectedOutcome.rawValue

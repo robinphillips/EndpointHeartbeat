@@ -2,6 +2,7 @@
   "endpoints": [
     {
       "name": "Let's Encrypt ISRG Root X1 positive check",
+      "reportGroup": "Let's Encrypt",
       "url": "https://valid-isrgrootx1.letsencrypt.org/",
       "certificates": [{
         "id": "isrg-root-x1",
@@ -12,6 +13,7 @@
     },
     {
       "name": "Deliberately incorrect Base64 root pin",
+      "reportGroup": "Let's Encrypt",
       "url": "https://valid-isrgrootx1.letsencrypt.org/",
       "certificates": [{
         "id": "incorrect-root",
