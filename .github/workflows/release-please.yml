@@ -3,6 +3,12 @@ name: Release Please
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_as:
+        description: Semantic version for a one-off release override.
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -15,3 +21,4 @@ jobs:
       - uses: googleapis/release-please-action@8b8fd2cc23b2e18957157a9d923d75aa0c6f6ad5
         with:
           release-type: simple
+          release-as: ${{ inputs.release_as || '' }}
