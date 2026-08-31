@@ -18,6 +18,10 @@ let package = Package(
         .testTarget(
             name: "EndpointHeartbeatCoreTests",
             dependencies: ["EndpointHeartbeatCore"]
+        ),
+        .testTarget(
+            name: "EndpointHeartbeatCLITests",
+            dependencies: ["EndpointHeartbeatCLI", "EndpointHeartbeatCore"]
         )
     ]
 )
