@@ -30,21 +30,24 @@ struct HeartbeatReport: Encodable {
             "",
             "**\(passedChecks)/\(totalChecks) checks passed**",
         ]
-        var groups: [(domain: String, checks: [HeartbeatReportCheck])] = []
+        var groups: [(host: String, checks: [HeartbeatReportCheck])] = []
         for check in checks {
-            let domain = check.url.host ?? check.url.absoluteString
-            if let index = groups.firstIndex(where: { $0.domain == domain }) {
+            let host = check.url.host ?? check.url.absoluteString
+            if let index = groups.firstIndex(where: { $0.host == host }) {
                 groups[index].checks.append(check)
             } else {
-                groups.append((domain: domain, checks: [check]))
+                groups.append((host: host, checks: [check]))
             }
         }
         for group in groups {
+            let endpoints = Array(Set(group.checks.map { $0.url.absoluteString })).sorted()
             lines += [
                 "",
-                "## \(group.domain)",
+                "## \(displayDomain(for: group.host))",
                 "",
-                "| Status | Endpoint | Pin | Result | Expected |",
+                "Endpoint: \(endpoints.joined(separator: ", "))",
+                "",
+                "| Status | Check | Pin | Result | Expected |",
                 "| --- | --- | --- | --- |"
             ]
             lines += group.checks.enumerated().sorted { lhs, rhs in
@@ -52,10 +55,16 @@ struct HeartbeatReport: Encodable {
                     ? lhs.offset < rhs.offset
                     : lhs.element.displayOrder < rhs.element.displayOrder
             }.map {
-                "| \($0.element.passed ? "✅" : "❌") | \($0.element.displayEndpoint) | \($0.element.displayPin) | \($0.element.displayResult) | \($0.element.displayExpectedOutcome) |"
+                "| \($0.element.passed ? "✅" : "❌") | \($0.element.displayCheckName) | \($0.element.displayPin) | \($0.element.displayResult) | \($0.element.displayExpectedOutcome) |"
             }
         }
         try (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private func displayDomain(for host: String) -> String {
+        let labels = host.split(separator: ".")
+        guard labels.count > 2 else { return host }
+        return labels.suffix(2).joined(separator: ".")
     }
 }
 
@@ -65,11 +74,10 @@ private extension HeartbeatReportCheck {
         return expectedOutcome == "trustFailure" ? 2 : 1
     }
 
-    var displayEndpoint: String {
-        let endpointName = expectedOutcome == "trustFailure" && !name.hasSuffix(" - expected failure")
+    var displayCheckName: String {
+        expectedOutcome == "trustFailure" && !name.hasSuffix(" - expected failure")
             ? "\(name) - expected failure"
             : name
-        return "\(endpointName)<br>URL: \(url.absoluteString)"
     }
 
     var displayExpectedOutcome: String {
@@ -91,19 +99,19 @@ private extension HeartbeatReportCheck {
     }
 
     var displayResult: String {
-        let warnings = warnings.map { "⚠️ \($0)" }.joined(separator: "<br>")
+        let warnings = warnings.map { "⚠️ \($0)" }.joined(separator: " · ")
         return ["Outcome: \(outcome)", displayOutcomeDetails, warnings]
             .filter { !$0.isEmpty }
-            .joined(separator: "<br>")
+            .joined(separator: " · ")
     }
 
     var displayPin: String {
         return [
-            "ID: `\(pin.id)`",
-            "Role: `\(pin.role)`",
-            "State: `\(pin.state)`",
-            "SPKI SHA-256 (Base64): `\(pin.spkiSHA256Base64)`"
-        ].joined(separator: "<br>")
+            "ID `\(pin.id)`",
+            "Role `\(pin.role)`",
+            "State `\(pin.state)`",
+            "SPKI SHA-256 (Base64) `\(pin.spkiSHA256Base64)`"
+        ].joined(separator: " · ")
     }
 
     var displayOutcomeDetails: String {
@@ -112,6 +120,6 @@ private extension HeartbeatReportCheck {
             return outcomeDetails
         }
         let hash = outcomeDetails.dropFirst(prefix.count)
-        return "Reason: No configured certificate pin matched<br>Observed certificate:<br>Role: `root`<br>SPKI SHA-256 (Base64): `\(hash)`"
+        return "Reason: No configured certificate pin matched · Observed root SPKI SHA-256 (Base64) `\(hash)`"
     }
 }
