@@ -127,8 +127,8 @@ private extension HeartbeatReportCheck {
     var displayCertificateValidity: [String] {
         let formatter = ISO8601DateFormatter()
         return [
-            observedCertificate?.notBefore.map { "Valid from: \(formatter.string(from: $0))" },
-            observedCertificate?.notAfter.map { "Expires: \(formatter.string(from: $0))" }
+            endpointCertificate?.notBefore.map { "Endpoint leaf valid from: \(formatter.string(from: $0))" },
+            endpointCertificate?.notAfter.map { "Endpoint leaf expires: \(formatter.string(from: $0))" }
         ].compactMap(\.self)
     }
 }

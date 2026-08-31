@@ -18,18 +18,18 @@ public enum Heartbeat {
         do {
             let (_, response) = try await session.data(from: endpoint.url)
             guard let response = response as? HTTPURLResponse else {
-                return CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .transportFailure("response was not HTTP"), observedCertificate: delegate.observedCertificate(for: pin.role), warnings: delegate.warnings)
+                return CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .transportFailure("response was not HTTP"), endpointCertificate: delegate.observedCertificate(for: .leaf), warnings: delegate.warnings)
             }
 
             let outcome: ObservedOutcome = endpoint.acceptableStatusCodes.contains(response.statusCode)
                 ? .success(statusCode: response.statusCode)
                 : .httpFailure(statusCode: response.statusCode)
-            return CheckResult(endpoint: endpoint, pin: pin, observedOutcome: outcome, observedCertificate: delegate.observedCertificate(for: pin.role), warnings: delegate.warnings)
+            return CheckResult(endpoint: endpoint, pin: pin, observedOutcome: outcome, endpointCertificate: delegate.observedCertificate(for: .leaf), warnings: delegate.warnings)
         } catch {
             if let trustFailure = delegate.trustFailure {
-                return CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .trustFailure(trustFailure), observedCertificate: delegate.observedCertificate(for: pin.role), warnings: delegate.warnings)
+                return CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .trustFailure(trustFailure), endpointCertificate: delegate.observedCertificate(for: .leaf), warnings: delegate.warnings)
             }
-            return CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .transportFailure(error.localizedDescription), observedCertificate: delegate.observedCertificate(for: pin.role), warnings: delegate.warnings)
+            return CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .transportFailure(error.localizedDescription), endpointCertificate: delegate.observedCertificate(for: .leaf), warnings: delegate.warnings)
         }
     }
 
