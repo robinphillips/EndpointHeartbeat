@@ -28,8 +28,8 @@ jobs:
       CONFIG_PATH: ${{ inputs.config_path || 'Examples/heartbeat.json' }}
       SOURCE_REF: ${{ inputs.source_ref || 'main' }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           repository: robinphillips/EndpointHeartbeat
           ref: ${{ env.SOURCE_REF }}
@@ -43,7 +43,7 @@ jobs:
         run: cat heartbeat-report.md >> "$GITHUB_STEP_SUMMARY"
       - name: Upload heartbeat report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: heartbeat-report
           path: heartbeat-report.json
