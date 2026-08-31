@@ -156,6 +156,16 @@ The CLI exits with status `0` when every observed result matches its expectation
 
 macOS 13 or later. Security.framework is used so the healthcheck exercises Apple's trust evaluation.
 
+## Compatibility
+
+Release tags follow semantic versioning.
+
+- Patch releases preserve the public Swift API, CLI options, JSON configuration schema, JSON report schema, and reusable workflow inputs.
+- Minor releases may add optional configuration fields, report fields, CLI options, and workflow inputs without changing existing behaviour.
+- Major releases may remove or change public Swift APIs, CLI options, configuration fields, JSON report fields, or workflow inputs.
+- Markdown reports are for human reading and may change between releases. Use the JSON report for machine-readable integrations.
+- The default branch is not a compatibility target. Consumers should reference a release tag in Swift Package Manager and reusable workflow references.
+
 Scheduled GitHub workflows can be delayed or occasionally dropped. Add an external dead-man monitor if a missed run must generate an alert.
 
 ## Licence
