@@ -100,7 +100,7 @@ private extension HeartbeatReportCheck {
     }
 
     var displayResultRows: [String] {
-        ["Outcome: \(outcome)"] + displayOutcomeDetails + warnings.map { "⚠️ \($0)" }
+        ["Outcome: \(outcome)"] + displayOutcomeDetails + displayCertificateValidity + warnings.map { "⚠️ \($0)" }
     }
 
     var displayPinRows: [String] {
@@ -122,5 +122,13 @@ private extension HeartbeatReportCheck {
             "Reason: No configured certificate pin matched",
             "Observed root SPKI SHA-256 (Base64): `\(hash)`"
         ]
+    }
+
+    var displayCertificateValidity: [String] {
+        let formatter = ISO8601DateFormatter()
+        return [
+            observedCertificate?.notBefore.map { "Valid from: \(formatter.string(from: $0))" },
+            observedCertificate?.notAfter.map { "Expires: \(formatter.string(from: $0))" }
+        ].compactMap(\.self)
     }
 }

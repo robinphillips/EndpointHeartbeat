@@ -7,6 +7,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
     private let lock = NSLock()
     private var storedTrustFailure: String?
     private var storedWarnings: [CertificateWarning] = []
+    private var storedCertificates: [ObservedCertificate] = []
 
     init(pins: [CertificatePin], expiryWarningDays: Int) {
         self.pins = pins
@@ -23,6 +24,10 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
     var trustFailure: String? { lock.withLock { storedTrustFailure } }
 
     var warnings: [CertificateWarning] { lock.withLock { storedWarnings } }
+
+    func observedCertificate(for role: CertificateRole) -> ObservedCertificate? {
+        lock.withLock { storedCertificates.first { $0.role == role } }
+    }
 
     func urlSession(
         _ session: URLSession,
@@ -72,12 +77,14 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
             return ObservedCertificate(
                 role: certificateRole(at: index, in: chain),
                 spkiSHA256Base64: spkiSHA256Base64,
+                notBefore: certificateValidity(for: certificate).notBefore,
                 notAfter: certificateValidity(for: certificate).notAfter
             )
         }
         guard observed.count == chain.count else {
             return .failure("could not extract SubjectPublicKeyInfo from evaluated certificate chain")
         }
+        lock.withLock { storedCertificates = observed }
         let matches = matchingPins(in: observed, now: now)
         if !matches.active.isEmpty {
             return .success(expiryWarnings(for: observed, matchedPins: matches.active + matches.retiring, now: now))
