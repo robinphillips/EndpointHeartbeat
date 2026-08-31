@@ -172,6 +172,8 @@ Pull request titles must follow [Conventional Commits](https://www.conventionalc
 
 [Release Please](https://github.com/googleapis/release-please) creates and updates a release pull request from merged Conventional Commits. Merging the release pull request creates the semantic-version tag, changelog, and GitHub Release.
 
+Create a fine-grained personal access token with `Contents` and `Pull requests` read/write access, then save it as the `RELEASE_PLEASE_TOKEN` Actions secret. This lets generated release pull requests trigger continuous integration.
+
 Scheduled GitHub workflows can be delayed or occasionally dropped. Add an external dead-man monitor if a missed run must generate an alert.
 
 ## Licence
