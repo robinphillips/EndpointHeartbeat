@@ -34,24 +34,7 @@ struct HeartbeatReport: Encodable {
             "| --- | --- | --- | --- |"
         ]
         lines += checks.map { check in
-            "| \(check.passed ? "✅" : "❌") | \(check.name) | \(check.observedOutcome) | \(check.displayExpectedOutcome) |"
-        }
-        for check in checks {
-            lines.append("")
-            lines.append("<details>")
-            lines.append("<summary>Details: \(check.name)</summary>")
-            lines.append("")
-            lines.append("- URL: \(check.url.absoluteString)")
-            lines.append("- Configured pins:")
-            lines += check.pins.map { pin in
-                "  - \(pin.id) (\(pin.role), \(pin.state)): `\(pin.sha256)`"
-            }
-            if !check.warnings.isEmpty {
-                lines.append("- Warnings:")
-                lines += check.warnings.map { "  - ⚠️ \($0)" }
-            }
-            lines.append("")
-            lines.append("</details>")
+            "| \(check.passed ? "✅" : "❌") | \(check.name) | \(check.displayResult) | \(check.displayExpectedOutcome) |"
         }
         try (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
     }
@@ -64,5 +47,13 @@ private extension HeartbeatReportCheck {
         case "trustFailure": "trust failure"
         default: expectedOutcome
         }
+    }
+
+    var displayResult: String {
+        let pins = pins.map { "\($0.id) (\($0.role), \($0.state)): `\($0.sha256)`" }.joined(separator: "<br>")
+        let warnings = warnings.map { "⚠️ \($0)" }.joined(separator: "<br>")
+        return [observedOutcome, "URL: \(url.absoluteString)", "Pins: \(pins)", warnings]
+            .filter { !$0.isEmpty }
+            .joined(separator: "<br>")
     }
 }

@@ -1,8 +1,8 @@
 name: On commit
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
 
 permissions:
   contents: read

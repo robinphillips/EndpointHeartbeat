@@ -31,7 +31,7 @@ jobs:
 3. Replace both `<release-tag>` values with the same published version tag.
 4. Open the Actions tab and run **Endpoint heartbeat** manually.
 
-The reusable workflow checks out the caller repository to read its configuration and the referenced Endpoint Heartbeat release to run the check. The included configuration is runnable: it checks a Let's Encrypt test endpoint with one correct and one deliberately incorrect root pin. This repository's **On commit** workflow runs continuous integration and endpoint heartbeat on pushes to `main`; continuous integration also runs on pull requests. Endpoint heartbeat runs hourly at 45 minutes past the hour and manually.
+The reusable workflow checks out the caller repository to read its configuration and the referenced Endpoint Heartbeat release to run the check. The included configuration is runnable: it checks a Let's Encrypt test endpoint with one correct and one deliberately incorrect root pin. This repository's **On commit** workflow runs continuous integration and endpoint heartbeat on every push. Endpoint heartbeat also runs hourly at 45 minutes past the hour and manually.
 
 ## Configuration
 
