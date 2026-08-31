@@ -52,7 +52,7 @@ enum EndpointHeartbeatCommand {
             }
             let certificates = try await CertificateInspector.inspect(url)
             for certificate in certificates {
-                print("\(certificate.role.rawValue): \(certificate.subject)\n  SHA-256: \(certificate.sha256)")
+                print("\(certificate.role.rawValue): \(certificate.subject)\n  SPKI SHA-256 (Base64): \(certificate.spkiSHA256Base64)")
                 if let notAfter = certificate.notAfter {
                     print("  Not after: \(ISO8601DateFormatter().string(from: notAfter))")
                 }

@@ -4,32 +4,38 @@ import Security
 import Testing
 
 struct EndpointHeartbeatCoreTests {
-    @Test("certificate hashes require a 32-byte Base64 value")
-    func validatesBase64CertificateHashes() {
-        #expect(CertificateHash.isValid("ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0="))
-        #expect(!CertificateHash.isValid("00:11:invalid"))
-        #expect(!CertificateHash.isValid("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="))
+    @Test("SPKI hashes require a 32-byte Base64 value")
+    func validatesBase64SPKIHashes() {
+        #expect(SPKIHash.isValidBase64("ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0="))
+        #expect(!SPKIHash.isValidBase64("00:11:invalid"))
+        #expect(!SPKIHash.isValidBase64("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="))
     }
 
-    @Test("certificate data produces a Base64 SHA-256 hash")
-    func hashesCertificateData() {
-        #expect(CertificateHash.sha256(of: Data("abc".utf8)) == "ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=")
+    @Test("SPKI data produces a Base64 SHA-256 hash")
+    func hashesSPKIData() {
+        #expect(SPKIHash.sha256Base64(of: Data("abc".utf8)) == "ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=")
+    }
+
+    @Test("certificate SPKI hashing matches OpenSSL")
+    func hashesCertificateSubjectPublicKeyInfo() throws {
+        let certificate = try testCertificate()
+        #expect(SPKIHash.sha256Base64(of: certificate) == "OExZh9XLBdCoTDwhT3cJ/9u3L6rgKOK7JrzNCXUcW4Q=")
     }
 
     @Test("decoded endpoints receive omitted defaults")
     func suppliesConfigurationDefaults() throws {
         let json = """
-        {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root","sha256":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}]}]}
+        {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root","spkiSHA256Base64":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}]}]}
         """
         let configuration = try JSONDecoder().decode(HeartbeatConfiguration.self, from: Data(json.utf8))
         #expect(configuration.endpoints[0].expectedOutcome == .success)
         #expect(configuration.endpoints[0].acceptableStatusCodes == Array(200..<300))
     }
 
-    @Test("decoded endpoints do not require a hash encoding")
-    func doesNotRequireHashEncoding() throws {
+    @Test("decoded endpoints require explicit SPKI Base64 keys")
+    func requiresExplicitSPKIBase64Key() throws {
         let json = """
-        {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root","sha256":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}]}]}
+        {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root","spkiSHA256Base64":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}]}]}
         """
         _ = try JSONDecoder().decode(HeartbeatConfiguration.self, from: Data(json.utf8))
     }
@@ -154,7 +160,7 @@ struct EndpointHeartbeatCoreTests {
     func handlesServerTrustChallenges() async throws {
         let certificate = try testCertificate()
         let trust = try trustedTrust(for: certificate)
-        let expectedHash = CertificateHash.sha256(of: certificate)
+        let expectedHash = try #require(SPKIHash.sha256Base64(of: certificate))
 
         await SystemClock.withCurrentDate(Self.validCertificateDate) {
             let matchingDelegate = CertificatePinningDelegate(expectedRootHash: expectedHash)
@@ -184,7 +190,7 @@ struct EndpointHeartbeatCoreTests {
             #expect(certificates[0].position == 0)
             #expect(certificates[0].role == .root)
             #expect(certificates[0].subject == "example.com")
-            #expect(certificates[0].sha256 == CertificateHash.sha256(of: certificate))
+            #expect(certificates[0].spkiSHA256Base64 == SPKIHash.sha256Base64(of: certificate))
             #expect(certificates[0].notAfter != nil)
         }
     }
@@ -194,7 +200,7 @@ struct EndpointHeartbeatCoreTests {
         let retiringPin = CertificatePin(
             id: "old-root",
             role: .root,
-            sha256: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            spkiSHA256Base64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
             state: .retiring
         )
         let endpoint = Endpoint(
@@ -210,20 +216,20 @@ struct EndpointHeartbeatCoreTests {
     @Test("retiring matching pins silence imminent expiry warnings when replaced")
     func suppressesRetiringCertificateExpiryWarning() async throws {
         let certificate = try testCertificate()
-        let hash = CertificateHash.sha256(of: certificate)
+        let hash = try #require(SPKIHash.sha256Base64(of: certificate))
         let delegate = CertificatePinningDelegate(
             pins: [
                 .init(
                     id: "old-root",
                     role: .root,
-                    sha256: hash,
+                    spkiSHA256Base64: hash,
                     state: .retiring,
                     retireAfter: Self.validCertificateDate.addingTimeInterval(3_600)
                 ),
                 .init(
                     id: "new-root",
                     role: .root,
-                    sha256: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                    spkiSHA256Base64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
                 )
             ],
             expiryWarningDays: 30
@@ -243,7 +249,7 @@ struct EndpointHeartbeatCoreTests {
             pins: [.init(
                 id: "current-root",
                 role: .root,
-                sha256: CertificateHash.sha256(of: certificate)
+                spkiSHA256Base64: try #require(SPKIHash.sha256Base64(of: certificate))
             )],
             expiryWarningDays: 30
         )
@@ -263,14 +269,14 @@ struct EndpointHeartbeatCoreTests {
                 .init(
                     id: "old-root",
                     role: .root,
-                    sha256: CertificateHash.sha256(of: certificate),
+                    spkiSHA256Base64: try #require(SPKIHash.sha256Base64(of: certificate)),
                     state: .retiring,
                     retireAfter: Self.validCertificateDate.addingTimeInterval(3_600)
                 ),
                 .init(
                     id: "new-root",
                     role: .root,
-                    sha256: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                    spkiSHA256Base64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
                 )
             ],
             expiryWarningDays: 30
@@ -295,7 +301,7 @@ struct EndpointHeartbeatCoreTests {
     private static let expiredCertificateDate = Date(timeIntervalSince1970: 1_788_264_000)
 
     private func rootPin(_ hash: String = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=") -> CertificatePin {
-        .init(id: "root", role: .root, sha256: hash)
+        .init(id: "root", role: .root, spkiSHA256Base64: hash)
     }
 
     private func mockSessionConfiguration() -> URLSessionConfiguration {

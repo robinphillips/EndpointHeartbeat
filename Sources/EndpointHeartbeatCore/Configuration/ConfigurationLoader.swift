@@ -31,7 +31,7 @@ public enum ConfigurationLoader {
                 guard !certificate.id.isEmpty, ids.insert(certificate.id).inserted else {
                     throw ConfigurationError.duplicateCertificateID(endpoint: endpoint.name, id: certificate.id)
                 }
-                guard CertificateHash.isValid(certificate.sha256) else {
+                guard SPKIHash.isValidBase64(certificate.spkiSHA256Base64) else {
                     throw ConfigurationError.invalidHash(endpoint: endpoint.name, id: certificate.id)
                 }
                 guard certificate.state != .retiring || certificate.retireAfter != nil else {

@@ -43,10 +43,20 @@ struct HeartbeatReport: Encodable {
 private extension HeartbeatReportCheck {
     var displayExpectedOutcome: String {
         switch expectedOutcome {
-        case "success": "success"
+        case "success": displayExpectedHTTPStatus
         case "trustFailure": "trust failure"
         default: expectedOutcome
         }
+    }
+
+    var displayExpectedHTTPStatus: String {
+        let statusCodes = acceptableStatusCodes.sorted()
+        guard let first = statusCodes.first else { return "HTTP status" }
+        guard statusCodes.count > 1 else { return "HTTP \(first)" }
+        if statusCodes == Array(first...(first + statusCodes.count - 1)) {
+            return "HTTP \(first)–\(statusCodes.last!)"
+        }
+        return "HTTP \(statusCodes.map(String.init).joined(separator: ", "))"
     }
 
     var displayResult: String {
@@ -62,16 +72,16 @@ private extension HeartbeatReportCheck {
             "ID: `\(pin.id)`",
             "Role: `\(pin.role)`",
             "State: `\(pin.state)`",
-            "Certificate SHA-256 hash: `\(pin.sha256)`"
+            "SPKI SHA-256 (Base64): `\(pin.spkiSHA256Base64)`"
         ].joined(separator: "<br>")
     }
 
     var displayOutcomeDetails: String {
-        let prefix = "no configured certificate pin matched: root SHA-256 was "
+        let prefix = "no configured certificate pin matched: root SPKI SHA-256 was "
         guard outcome == "Trust failure", outcomeDetails.hasPrefix(prefix) else {
             return outcomeDetails
         }
         let hash = outcomeDetails.dropFirst(prefix.count)
-        return "Reason: No configured certificate pin matched<br>Observed certificate:<br>Role: `root`<br>Certificate SHA-256 hash: `\(hash)`"
+        return "Reason: No configured certificate pin matched<br>Observed certificate:<br>Role: `root`<br>SPKI SHA-256 (Base64): `\(hash)`"
     }
 }

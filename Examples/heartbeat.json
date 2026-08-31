@@ -6,7 +6,7 @@
       "certificates": [{
         "id": "isrg-root-x1",
         "role": "root",
-        "sha256": "lrzsBiZJdvN0YHeazyjFp8/oo8Cq4RqP/O4FwL3fCMY="
+        "spkiSHA256Base64": "C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M="
       }],
       "expectedOutcome": "success",
       "acceptableStatusCodes": [200]
@@ -17,7 +17,7 @@
       "certificates": [{
         "id": "incorrect-root",
         "role": "root",
-        "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        "spkiSHA256Base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
       }],
       "expectedOutcome": "trustFailure",
       "acceptableStatusCodes": [200]
