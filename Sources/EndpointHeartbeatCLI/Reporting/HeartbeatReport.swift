@@ -48,7 +48,7 @@ struct HeartbeatReport: Encodable {
                 "Endpoint: \(endpoints.joined(separator: ", "))",
                 "",
                 "| Status | Check | Pin | Result | Expected |",
-                "| --- | --- | --- | --- |"
+                "| --- | --- | --- | --- | --- |"
             ]
             lines += group.checks.enumerated().sorted { lhs, rhs in
                 lhs.element.displayOrder == rhs.element.displayOrder
