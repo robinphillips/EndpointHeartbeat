@@ -11,7 +11,7 @@ struct HeartbeatReportCheck: Encodable {
     let outcome: String
     let outcomeDetails: String
     let warnings: [String]
-    let pins: [HeartbeatReportPin]
+    let pin: HeartbeatReportPin
 
     init(_ result: CheckResult) {
         name = result.endpoint.name
@@ -35,6 +35,6 @@ struct HeartbeatReportCheck: Encodable {
             outcomeDetails = message
         }
         warnings = result.warnings.map(\.description)
-        pins = [HeartbeatReportPin(result.pin)]
+        pin = HeartbeatReportPin(result.pin)
     }
 }

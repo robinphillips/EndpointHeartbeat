@@ -30,28 +30,48 @@ struct HeartbeatReport: Encodable {
             "",
             "**\(passedChecks)/\(totalChecks) checks passed**",
         ]
-        var previousEndpoint: (name: String, url: URL)?
+        var groups: [(domain: String, checks: [HeartbeatReportCheck])] = []
         for check in checks {
-            let endpoint = (name: check.name, url: check.url)
-            if previousEndpoint?.name != endpoint.name || previousEndpoint?.url != endpoint.url {
-                lines += [
-                    "",
-                    "## \(check.name)",
-                    "",
-                    "URL: \(check.url.absoluteString)",
-                    "",
-                    "| Status | Pin | Result | Expected |",
-                    "| --- | --- | --- | --- |"
-                ]
-                previousEndpoint = endpoint
+            let domain = check.url.host ?? check.url.absoluteString
+            if let index = groups.firstIndex(where: { $0.domain == domain }) {
+                groups[index].checks.append(check)
+            } else {
+                groups.append((domain: domain, checks: [check]))
             }
-            lines.append("| \(check.passed ? "✅" : "❌") | \(check.displayPin) | \(check.displayResult) | \(check.displayExpectedOutcome) |")
+        }
+        for group in groups {
+            lines += [
+                "",
+                "## \(group.domain)",
+                "",
+                "| Status | Endpoint | Pin | Result | Expected |",
+                "| --- | --- | --- | --- |"
+            ]
+            lines += group.checks.enumerated().sorted { lhs, rhs in
+                lhs.element.displayOrder == rhs.element.displayOrder
+                    ? lhs.offset < rhs.offset
+                    : lhs.element.displayOrder < rhs.element.displayOrder
+            }.map {
+                "| \($0.element.passed ? "✅" : "❌") | \($0.element.displayEndpoint) | \($0.element.displayPin) | \($0.element.displayResult) | \($0.element.displayExpectedOutcome) |"
+            }
         }
         try (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
     }
 }
 
 private extension HeartbeatReportCheck {
+    var displayOrder: Int {
+        guard passed else { return 0 }
+        return expectedOutcome == "trustFailure" ? 2 : 1
+    }
+
+    var displayEndpoint: String {
+        let endpointName = expectedOutcome == "trustFailure" && !name.hasSuffix(" - expected failure")
+            ? "\(name) - expected failure"
+            : name
+        return "\(endpointName)<br>URL: \(url.absoluteString)"
+    }
+
     var displayExpectedOutcome: String {
         switch expectedOutcome {
         case "success": displayExpectedHTTPStatus
@@ -78,7 +98,6 @@ private extension HeartbeatReportCheck {
     }
 
     var displayPin: String {
-        guard let pin = pins.first else { return "Unknown" }
         return [
             "ID: `\(pin.id)`",
             "Role: `\(pin.role)`",
