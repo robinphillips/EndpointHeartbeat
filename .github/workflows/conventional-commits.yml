@@ -14,7 +14,8 @@ jobs:
         env:
           PULL_REQUEST_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          if [[ ! "$PULL_REQUEST_TITLE" =~ ^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([^)]+\))?!?:\ .+$ ]]; then
+          conventional_commit='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([^)]+\))?!?: .+$'
+          if [[ ! "$PULL_REQUEST_TITLE" =~ $conventional_commit ]]; then
             echo "Pull request title must follow Conventional Commits."
             exit 1
           fi
