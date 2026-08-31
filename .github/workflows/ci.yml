@@ -1,0 +1,19 @@
+name: Continuous integration
+
+on:
+  workflow_call:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run unit tests
+        run: swift test
+      - name: Validate configuration
+        run: swift run endpoint-heartbeat validate --config Examples/heartbeat.json

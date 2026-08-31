@@ -1,0 +1,32 @@
+name: Endpoint heartbeat
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: "45 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  heartbeat:
+    runs-on: macos-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check endpoints
+        run: >-
+          swift run -c release endpoint-heartbeat check --config Examples/heartbeat.json
+          --report heartbeat-report.json --markdown-report heartbeat-report.md
+      - name: Add report to job summary
+        if: always()
+        run: cat heartbeat-report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload heartbeat report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: heartbeat-report
+          path: heartbeat-report.json
+          if-no-files-found: error
+          retention-days: 90
