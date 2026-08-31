@@ -7,6 +7,8 @@ struct HeartbeatReportCheck: Encodable {
     let passed: Bool
     let expectedOutcome: String
     let observedOutcome: String
+    let outcome: String
+    let outcomeDetails: String
     let warnings: [String]
     let pins: [HeartbeatReportPin]
 
@@ -16,6 +18,20 @@ struct HeartbeatReportCheck: Encodable {
         passed = result.passed
         expectedOutcome = result.endpoint.expectedOutcome.rawValue
         observedOutcome = result.observedOutcome.description
+        switch result.observedOutcome {
+        case let .success(statusCode):
+            outcome = "Success"
+            outcomeDetails = "HTTP status: \(statusCode)"
+        case let .trustFailure(message):
+            outcome = "Trust failure"
+            outcomeDetails = message
+        case let .httpFailure(statusCode):
+            outcome = "HTTP failure"
+            outcomeDetails = "HTTP status: \(statusCode)"
+        case let .transportFailure(message):
+            outcome = "Transport failure"
+            outcomeDetails = message
+        }
         warnings = result.warnings.map(\.description)
         pins = result.endpoint.certificates.map(HeartbeatReportPin.init)
     }

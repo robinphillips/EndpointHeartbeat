@@ -52,8 +52,17 @@ private extension HeartbeatReportCheck {
     var displayResult: String {
         let pins = pins.map { "\($0.id) (\($0.role), \($0.state)): `\($0.sha256)`" }.joined(separator: "<br>")
         let warnings = warnings.map { "⚠️ \($0)" }.joined(separator: "<br>")
-        return [observedOutcome, "URL: \(url.absoluteString)", "Pins: \(pins)", warnings]
+        return ["Outcome: \(outcome)", displayOutcomeDetails, "URL: \(url.absoluteString)", "Pins: \(pins)", warnings]
             .filter { !$0.isEmpty }
             .joined(separator: "<br>")
+    }
+
+    var displayOutcomeDetails: String {
+        let prefix = "no configured certificate pin matched: root SHA-256 was "
+        guard outcome == "Trust failure", outcomeDetails.hasPrefix(prefix) else {
+            return outcomeDetails
+        }
+        let hash = outcomeDetails.dropFirst(prefix.count)
+        return "Reason: No configured certificate pin matched<br>Observed root SHA-256: `\(hash)`"
     }
 }
