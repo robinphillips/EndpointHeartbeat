@@ -52,17 +52,17 @@ private extension HeartbeatReportCheck {
     var displayResult: String {
         let pins = pins.map(displayPin).joined(separator: "<br><br>")
         let warnings = warnings.map { "⚠️ \($0)" }.joined(separator: "<br>")
-        return ["Outcome: \(outcome)", displayOutcomeDetails, "URL: \(url.absoluteString)", "Configured pins<br>\(pins)", warnings]
+        return ["Outcome: \(outcome)", displayOutcomeDetails, "URL: \(url.absoluteString)", "Configured pins:<br>\(pins)", warnings]
             .filter { !$0.isEmpty }
             .joined(separator: "<br>")
     }
 
     func displayPin(_ pin: HeartbeatReportPin) -> String {
         [
-            "ID `\(pin.id)`",
-            "Role `\(pin.role)`",
-            "State `\(pin.state)`",
-            "SHA-256 `\(pin.sha256)`"
+            "ID: `\(pin.id)`",
+            "Role: `\(pin.role)`",
+            "State: `\(pin.state)`",
+            "Certificate SHA-256 hash: `\(pin.sha256)`"
         ].joined(separator: "<br>")
     }
 
@@ -72,6 +72,6 @@ private extension HeartbeatReportCheck {
             return outcomeDetails
         }
         let hash = outcomeDetails.dropFirst(prefix.count)
-        return "Reason: No configured certificate pin matched<br>Observed certificate<br>Role `root`<br>SHA-256 `\(hash)`"
+        return "Reason: No configured certificate pin matched<br>Observed certificate:<br>Role: `root`<br>Certificate SHA-256 hash: `\(hash)`"
     }
 }
