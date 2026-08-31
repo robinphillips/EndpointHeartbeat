@@ -29,12 +29,23 @@ struct HeartbeatReport: Encodable {
             "Generated: \(formatter.string(from: generatedAt))",
             "",
             "**\(passedChecks)/\(totalChecks) checks passed**",
-            "",
-            "| Status | Endpoint | Result | Expected |",
-            "| --- | --- | --- | --- |"
         ]
-        lines += checks.map { check in
-            "| \(check.passed ? "✅" : "❌") | \(check.name) | \(check.displayResult) | \(check.displayExpectedOutcome) |"
+        var previousEndpoint: (name: String, url: URL)?
+        for check in checks {
+            let endpoint = (name: check.name, url: check.url)
+            if previousEndpoint?.name != endpoint.name || previousEndpoint?.url != endpoint.url {
+                lines += [
+                    "",
+                    "## \(check.name)",
+                    "",
+                    "URL: \(check.url.absoluteString)",
+                    "",
+                    "| Status | Pin | Result | Expected |",
+                    "| --- | --- | --- | --- |"
+                ]
+                previousEndpoint = endpoint
+            }
+            lines.append("| \(check.passed ? "✅" : "❌") | \(check.displayPin) | \(check.displayResult) | \(check.displayExpectedOutcome) |")
         }
         try (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
     }
@@ -60,15 +71,15 @@ private extension HeartbeatReportCheck {
     }
 
     var displayResult: String {
-        let pins = pins.map(displayPin).joined(separator: "<br><br>")
         let warnings = warnings.map { "⚠️ \($0)" }.joined(separator: "<br>")
-        return ["Outcome: \(outcome)", displayOutcomeDetails, "URL: \(url.absoluteString)", "Configured pins:<br>\(pins)", warnings]
+        return ["Outcome: \(outcome)", displayOutcomeDetails, warnings]
             .filter { !$0.isEmpty }
             .joined(separator: "<br>")
     }
 
-    func displayPin(_ pin: HeartbeatReportPin) -> String {
-        [
+    var displayPin: String {
+        guard let pin = pins.first else { return "Unknown" }
+        return [
             "ID: `\(pin.id)`",
             "Role: `\(pin.role)`",
             "State: `\(pin.state)`",
