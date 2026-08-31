@@ -1,0 +1,20 @@
+name: Conventional Commits
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate pull request title
+        env:
+          PULL_REQUEST_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [[ ! "$PULL_REQUEST_TITLE" =~ ^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([^)]+\))?!?:\ .+$ ]]; then
+            echo "Pull request title must follow Conventional Commits."
+            exit 1
+          fi

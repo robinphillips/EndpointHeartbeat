@@ -166,6 +166,12 @@ Release tags follow semantic versioning.
 - Markdown reports are for human reading and may change between releases. Use the JSON report for machine-readable integrations.
 - The default branch is not a compatibility target. Consumers should reference a release tag in Swift Package Manager and reusable workflow references.
 
+## Releases
+
+Pull request titles must follow [Conventional Commits](https://www.conventionalcommits.org/). Squash-merge pull requests so the title becomes the commit message on `main`.
+
+[Release Please](https://github.com/googleapis/release-please) creates and updates a release pull request from merged Conventional Commits. Merging the release pull request creates the semantic-version tag, changelog, and GitHub Release.
+
 Scheduled GitHub workflows can be delayed or occasionally dropped. Add an external dead-man monitor if a missed run must generate an alert.
 
 ## Licence
