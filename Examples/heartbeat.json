@@ -8,7 +8,6 @@
         "role": "root",
         "spkiSHA256Base64": "C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M="
       }],
-      "expectedOutcome": "success",
       "acceptableStatusCodes": [200]
     },
     {
@@ -17,9 +16,9 @@
       "certificates": [{
         "id": "incorrect-root",
         "role": "root",
-        "spkiSHA256Base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        "spkiSHA256Base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "expectedOutcome": "trustFailure"
       }],
-      "expectedOutcome": "trustFailure",
       "acceptableStatusCodes": [200]
     }
   ]

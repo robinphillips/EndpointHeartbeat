@@ -32,7 +32,7 @@ enum EndpointHeartbeatCommand {
             }
             for result in results {
                 let marker = result.passed ? "✓" : "✗"
-                print("\(marker) \(result.endpoint.name): \(result.observedOutcome.description) (expected \(result.endpoint.expectedOutcome.rawValue))")
+                print("\(marker) \(result.endpoint.name) [\(result.pin.id)]: \(result.observedOutcome.description) (expected \(result.pin.expectedOutcome.rawValue))")
                 for warning in result.warnings {
                     print("  ⚠ \(warning.description)")
                 }

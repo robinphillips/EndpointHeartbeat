@@ -28,7 +28,7 @@ struct EndpointHeartbeatCoreTests {
         {"endpoints":[{"name":"API","url":"https://example.com","certificates":[{"id":"root","role":"root","spkiSHA256Base64":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}]}]}
         """
         let configuration = try JSONDecoder().decode(HeartbeatConfiguration.self, from: Data(json.utf8))
-        #expect(configuration.endpoints[0].expectedOutcome == .success)
+        #expect(configuration.endpoints[0].certificates[0].expectedOutcome == .success)
         #expect(configuration.endpoints[0].acceptableStatusCodes == Array(200..<300))
     }
 
@@ -42,14 +42,14 @@ struct EndpointHeartbeatCoreTests {
 
     @Test("trust expectations do not accept transport failures")
     func expectedTrustFailureDoesNotHideTransportFailure() {
+        let pin = rootPin(expectedOutcome: .trustFailure)
         let endpoint = Endpoint(
             name: "API",
             url: URL(string: "https://example.com")!,
-            certificates: [rootPin()],
-            expectedOutcome: .trustFailure
+            certificates: [pin]
         )
-        #expect(CheckResult(endpoint: endpoint, observedOutcome: .trustFailure("mismatch")).passed)
-        #expect(!CheckResult(endpoint: endpoint, observedOutcome: .transportFailure("timeout")).passed)
+        #expect(CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .trustFailure("mismatch")).passed)
+        #expect(!CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .transportFailure("timeout")).passed)
     }
 
     @Test("duplicate endpoint names are rejected")
@@ -120,12 +120,19 @@ struct EndpointHeartbeatCoreTests {
         ]
 
         for (urlString, expectedOutcome) in cases {
-            let result = await Heartbeat.check(endpoint(for: urlString), sessionConfiguration: mockSessionConfiguration())
+            let endpoint = endpoint(for: urlString)
+            let result = await Heartbeat.check(
+                endpoint,
+                pin: endpoint.certificates[0],
+                sessionConfiguration: mockSessionConfiguration()
+            )
             #expect(result.observedOutcome == expectedOutcome)
         }
 
+        let transportEndpoint = endpoint(for: "https://transport.test")
         let transportResult = await Heartbeat.check(
-            endpoint(for: "https://transport.test"),
+            transportEndpoint,
+            pin: transportEndpoint.certificates[0],
             sessionConfiguration: mockSessionConfiguration()
         )
         if case let .transportFailure(message) = transportResult.observedOutcome {
@@ -141,6 +148,33 @@ struct EndpointHeartbeatCoreTests {
         let results = await Heartbeat.checkAll(endpoints)
 
         #expect(results.map(\.endpoint.name) == endpoints.map(\.name))
+    }
+
+    @Test("each pin has an independent expected outcome")
+    func checksEachPinIndependently() async {
+        let endpoint = Endpoint(
+            name: "API",
+            url: URL(string: "https://success.test")!,
+            certificates: [
+                .init(
+                    id: "expected-trust-failure",
+                    role: .root,
+                    spkiSHA256Base64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    expectedOutcome: .trustFailure
+                ),
+                .init(
+                    id: "expected-success",
+                    role: .root,
+                    spkiSHA256Base64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                )
+            ],
+            acceptableStatusCodes: [204]
+        )
+
+        let results = await Heartbeat.checkAll([endpoint])
+
+        #expect(results.map(\.pin.id) == ["expected-trust-failure", "expected-success"])
+        #expect(results.map(\.pin.expectedOutcome) == [.trustFailure, .success])
     }
 
     @Test("non-server-trust challenges use default handling")
@@ -300,8 +334,11 @@ struct EndpointHeartbeatCoreTests {
     private static let validCertificateDate = Date(timeIntervalSince1970: 1_788_091_200)
     private static let expiredCertificateDate = Date(timeIntervalSince1970: 1_788_264_000)
 
-    private func rootPin(_ hash: String = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=") -> CertificatePin {
-        .init(id: "root", role: .root, spkiSHA256Base64: hash)
+    private func rootPin(
+        _ hash: String = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        expectedOutcome: ExpectedOutcome = .success
+    ) -> CertificatePin {
+        .init(id: "root", role: .root, spkiSHA256Base64: hash, expectedOutcome: expectedOutcome)
     }
 
     private func mockSessionConfiguration() -> URLSessionConfiguration {

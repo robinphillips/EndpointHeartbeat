@@ -17,7 +17,7 @@ struct HeartbeatReportCheck: Encodable {
         name = result.endpoint.name
         url = result.endpoint.url
         passed = result.passed
-        expectedOutcome = result.endpoint.expectedOutcome.rawValue
+        expectedOutcome = result.pin.expectedOutcome.rawValue
         acceptableStatusCodes = result.endpoint.acceptableStatusCodes
         observedOutcome = result.observedOutcome.description
         switch result.observedOutcome {
@@ -35,6 +35,6 @@ struct HeartbeatReportCheck: Encodable {
             outcomeDetails = message
         }
         warnings = result.warnings.map(\.description)
-        pins = result.endpoint.certificates.map(HeartbeatReportPin.init)
+        pins = [HeartbeatReportPin(result.pin)]
     }
 }

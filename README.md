@@ -49,7 +49,6 @@ The reusable workflow checks out the caller repository to read its configuration
           "state": "active"
         }
       ],
-      "expectedOutcome": "success",
       "acceptableStatusCodes": [200, 204]
     },
     {
@@ -60,19 +59,19 @@ The reusable workflow checks out the caller repository to read its configuration
           "id": "obsolete-root",
           "role": "root",
           "spkiSHA256Base64": "Another-Base64-encoded-SPKI-SHA-256...",
+          "expectedOutcome": "trustFailure",
           "state": "active"
         }
       ],
-      "expectedOutcome": "trustFailure",
       "acceptableStatusCodes": [200]
     }
   ]
 }
 ```
 
-`expectedOutcome` defaults to `success`. `acceptableStatusCodes` defaults to every status from 200 through 299.
+Each pin's `expectedOutcome` defaults to `success`. `acceptableStatusCodes` defaults to every status from 200 through 299.
 
-Each endpoint requires at least one `active` certificate pin. `role` is `leaf`, `intermediate`, or `root`; any matching active pin is accepted. `spkiSHA256Base64` is a Base64-encoded SHA-256 hash of the certificate's DER-encoded SubjectPublicKeyInfo and must decode to exactly 32 bytes. This is the same pin format as Apple's `SPKI-SHA256-BASE64`.
+Each endpoint requires at least one `active` certificate pin. `role` is `leaf`, `intermediate`, or `root`; `spkiSHA256Base64` is a Base64-encoded SHA-256 hash of the certificate's DER-encoded SubjectPublicKeyInfo and must decode to exactly 32 bytes. This is the same pin format as Apple's `SPKI-SHA256-BASE64`. Each pin is checked independently; `expectedOutcome` defaults to `success` and can be `trustFailure` for an intentionally unmatched pin.
 
 `state` defaults to `active`. Use `state: "retiring"` with an ISO-8601 `retireAfter` date while rotating a pin. A retiring pin is accepted only before that date. `certificateExpiryWarningDays` defaults to `30`; expiring pins emit warnings unless the matching pin is retiring and another active pin exists for the same role.
 
