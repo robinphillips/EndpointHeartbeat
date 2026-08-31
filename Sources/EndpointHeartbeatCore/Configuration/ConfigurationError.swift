@@ -17,7 +17,7 @@ public enum ConfigurationError: Error, CustomStringConvertible {
         case let .nonHTTPSURL(name): "endpoint must use HTTPS: \(name)"
         case let .noCertificates(name): "endpoint has no certificate pins: \(name)"
         case let .duplicateCertificateID(endpoint, id): "certificate pin ID is duplicated for \(endpoint): \(id)"
-        case let .invalidHash(endpoint, id): "certificate pin SHA-256 must be Base64-encoded for \(endpoint): \(id)"
+        case let .invalidHash(endpoint, id): "certificate pin SPKI SHA-256 must be Base64-encoded for \(endpoint): \(id)"
         case let .noActiveCertificate(name): "endpoint has no active certificate pin: \(name)"
         case let .missingRetirementDate(endpoint, id): "retiring certificate pin has no retireAfter date for \(endpoint): \(id)"
         case let .invalidExpiryWarningDays(name): "certificateExpiryWarningDays must not be negative: \(name)"

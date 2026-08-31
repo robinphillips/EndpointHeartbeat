@@ -32,7 +32,7 @@ enum EndpointHeartbeatCommand {
             }
             for result in results {
                 let marker = result.passed ? "✓" : "✗"
-                print("\(marker) \(result.endpoint.name): \(result.observedOutcome.description) (expected \(result.endpoint.expectedOutcome.rawValue))")
+                print("\(marker) \(result.endpoint.name) [\(result.pin.id)]: \(result.observedOutcome.description) (expected \(result.pin.expectedOutcome.rawValue))")
                 for warning in result.warnings {
                     print("  ⚠ \(warning.description)")
                 }
@@ -52,7 +52,7 @@ enum EndpointHeartbeatCommand {
             }
             let certificates = try await CertificateInspector.inspect(url)
             for certificate in certificates {
-                print("\(certificate.role.rawValue): \(certificate.subject)\n  SHA-256: \(certificate.sha256)")
+                print("\(certificate.role.rawValue): \(certificate.subject)\n  SPKI SHA-256 (Base64): \(certificate.spkiSHA256Base64)")
                 if let notAfter = certificate.notAfter {
                     print("  Not after: \(ISO8601DateFormatter().string(from: notAfter))")
                 }
