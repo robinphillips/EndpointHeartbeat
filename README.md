@@ -6,12 +6,32 @@ Endpoint Heartbeat supports expected successes and expected trust failures. This
 
 ## Quick start
 
-1. Create a new public GitHub repository.
-2. Upload the contents of this directory to its root.
-3. Open the Actions tab and run **Endpoint heartbeat** manually.
-4. Replace `Examples/heartbeat.json` with your endpoints and pins.
+1. Create `endpoint-heartbeat.json` in your repository using the configuration below.
+2. Add `.github/workflows/endpoint-heartbeat.yml`:
 
-The included configuration is runnable: it checks a Let's Encrypt test endpoint with one correct and one deliberately incorrect root pin. The **On commit** workflow runs continuous integration and endpoint heartbeat on pushes to `main`; continuous integration also runs on pull requests. Endpoint heartbeat runs hourly at 45 minutes past the hour and manually.
+```yaml
+name: Endpoint heartbeat
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "45 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  heartbeat:
+    uses: robinphillips/EndpointHeartbeat/.github/workflows/heartbeat.yml@<release-tag>
+    with:
+      config_path: endpoint-heartbeat.json
+      source_ref: <release-tag>
+```
+
+3. Replace both `<release-tag>` values with the same published version tag.
+4. Open the Actions tab and run **Endpoint heartbeat** manually.
+
+The reusable workflow checks out the caller repository to read its configuration and the referenced Endpoint Heartbeat release to run the check. The included configuration is runnable: it checks a Let's Encrypt test endpoint with one correct and one deliberately incorrect root pin. This repository's **On commit** workflow runs continuous integration and endpoint heartbeat on pushes to `main`; continuous integration also runs on pull requests. Endpoint heartbeat runs hourly at 45 minutes past the hour and manually.
 
 ## Configuration
 

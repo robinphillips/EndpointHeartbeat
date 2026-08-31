@@ -2,6 +2,17 @@ name: Endpoint heartbeat
 
 on:
   workflow_call:
+    inputs:
+      config_path:
+        description: Path to the heartbeat configuration in the caller repository.
+        required: false
+        type: string
+        default: Examples/heartbeat.json
+      source_ref:
+        description: Endpoint Heartbeat revision to run.
+        required: false
+        type: string
+        default: main
   workflow_dispatch:
   schedule:
     - cron: "45 * * * *"
@@ -13,11 +24,19 @@ jobs:
   heartbeat:
     runs-on: macos-latest
     timeout-minutes: 5
+    env:
+      CONFIG_PATH: ${{ inputs.config_path || 'Examples/heartbeat.json' }}
+      SOURCE_REF: ${{ inputs.source_ref || 'main' }}
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+        with:
+          repository: robinphillips/EndpointHeartbeat
+          ref: ${{ env.SOURCE_REF }}
+          path: .endpoint-heartbeat
       - name: Check endpoints
         run: >-
-          swift run -c release endpoint-heartbeat check --config Examples/heartbeat.json
+          swift run --package-path .endpoint-heartbeat -c release endpoint-heartbeat check --config "$CONFIG_PATH"
           --report heartbeat-report.json --markdown-report heartbeat-report.md
       - name: Add report to job summary
         if: always()
