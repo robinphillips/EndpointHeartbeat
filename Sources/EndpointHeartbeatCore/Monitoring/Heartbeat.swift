@@ -1,16 +1,13 @@
 import Foundation
 
 public enum Heartbeat {
-    public static func check(_ endpoint: Endpoint) async -> CheckResult {
-        await check(endpoint, sessionConfiguration: .ephemeral)
-    }
-
     static func check(
         _ endpoint: Endpoint,
+        pin: CertificatePin,
         sessionConfiguration configuration: URLSessionConfiguration
     ) async -> CheckResult {
         let delegate = CertificatePinningDelegate(
-            pins: endpoint.certificates,
+            pins: [pin],
             expiryWarningDays: endpoint.certificateExpiryWarningDays
         )
         configuration.timeoutIntervalForRequest = 15
@@ -21,25 +18,26 @@ public enum Heartbeat {
         do {
             let (_, response) = try await session.data(from: endpoint.url)
             guard let response = response as? HTTPURLResponse else {
-                return CheckResult(endpoint: endpoint, observedOutcome: .transportFailure("response was not HTTP"), warnings: delegate.warnings)
+                return CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .transportFailure("response was not HTTP"), endpointCertificate: delegate.observedCertificate(for: .leaf), warnings: delegate.warnings)
             }
 
             let outcome: ObservedOutcome = endpoint.acceptableStatusCodes.contains(response.statusCode)
                 ? .success(statusCode: response.statusCode)
                 : .httpFailure(statusCode: response.statusCode)
-            return CheckResult(endpoint: endpoint, observedOutcome: outcome, warnings: delegate.warnings)
+            return CheckResult(endpoint: endpoint, pin: pin, observedOutcome: outcome, endpointCertificate: delegate.observedCertificate(for: .leaf), warnings: delegate.warnings)
         } catch {
             if let trustFailure = delegate.trustFailure {
-                return CheckResult(endpoint: endpoint, observedOutcome: .trustFailure(trustFailure), warnings: delegate.warnings)
+                return CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .trustFailure(trustFailure), endpointCertificate: delegate.observedCertificate(for: .leaf), warnings: delegate.warnings)
             }
-            return CheckResult(endpoint: endpoint, observedOutcome: .transportFailure(error.localizedDescription), warnings: delegate.warnings)
+            return CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .transportFailure(error.localizedDescription), endpointCertificate: delegate.observedCertificate(for: .leaf), warnings: delegate.warnings)
         }
     }
 
     public static func checkAll(_ endpoints: [Endpoint]) async -> [CheckResult] {
         await withTaskGroup(of: (Int, CheckResult).self) { group in
-            for (index, endpoint) in endpoints.enumerated() {
-                group.addTask { (index, await check(endpoint)) }
+            let checks = endpoints.flatMap { endpoint in endpoint.certificates.map { (endpoint, $0) } }
+            for (index, target) in checks.enumerated() {
+                group.addTask { (index, await check(target.0, pin: target.1, sessionConfiguration: .ephemeral)) }
             }
 
             var results: [(Int, CheckResult)] = []

@@ -1,8 +1,8 @@
 name: On commit
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -12,3 +12,5 @@ jobs:
     uses: ./.github/workflows/ci.yml
   heartbeat:
     uses: ./.github/workflows/heartbeat.yml
+    with:
+      source_ref: ${{ github.sha }}

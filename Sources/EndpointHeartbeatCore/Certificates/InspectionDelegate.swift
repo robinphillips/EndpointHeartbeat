@@ -37,12 +37,14 @@ final class InspectionDelegate: NSObject, URLSessionDelegate, @unchecked Sendabl
             return nil
         }
 
-        return chain.enumerated().map { index, certificate in
-            CertificateInfo(
+        return chain.enumerated().compactMap { pair -> CertificateInfo? in
+            let (index, certificate) = pair
+            guard let spkiSHA256Base64 = SPKIHash.sha256Base64(of: certificate) else { return nil }
+            return CertificateInfo(
                 position: index,
                 role: certificateRole(at: index, in: chain),
                 subject: SecCertificateCopySubjectSummary(certificate) as String? ?? "Unknown",
-                sha256: CertificateHash.sha256(of: certificate),
+                spkiSHA256Base64: spkiSHA256Base64,
                 notBefore: certificateValidity(for: certificate).notBefore,
                 notAfter: certificateValidity(for: certificate).notAfter
             )
