@@ -56,15 +56,7 @@ struct HeartbeatReport: Encodable {
                     ? lhs.offset < rhs.offset
                     : lhs.element.displayOrder < rhs.element.displayOrder
             }) {
-                let rows = max(check.element.displayPinRows.count, check.element.displayResultRows.count)
-                for index in 0..<rows {
-                    let status = index == 0 ? (check.element.passed ? "✅" : "❌") : ""
-                    let name = index == 0 ? check.element.displayCheckName : ""
-                    let pin = index < check.element.displayPinRows.count ? check.element.displayPinRows[index] : ""
-                    let result = index < check.element.displayResultRows.count ? check.element.displayResultRows[index] : ""
-                    let expected = index == 0 ? check.element.displayExpectedOutcome : ""
-                    lines.append("| \(status) | \(name) | \(pin) | \(result) | \(expected) |")
-                }
+                lines.append("| \(check.element.passed ? "✅" : "❌") | \(check.element.displayCheckName) | \(check.element.displayPinRows.joined(separator: "<br>")) | \(check.element.displayResultRows.joined(separator: "<br>")) | \(check.element.displayExpectedOutcome) |")
             }
         }
         try (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
