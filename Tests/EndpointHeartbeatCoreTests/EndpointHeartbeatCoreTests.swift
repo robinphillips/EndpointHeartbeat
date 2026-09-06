@@ -274,6 +274,26 @@ struct EndpointHeartbeatCoreTests {
         #expect(results.map(\.expectedOutcome) == [.success, .trustFailure, .success])
     }
 
+    @Test("system trust is checked once for matching endpoint URLs")
+    func checksSystemTrustOncePerURL() async {
+        let url = URL(string: "https://success.test")!
+        let firstEndpoint = Endpoint(
+            name: "First API",
+            url: url,
+            certificates: [.init(id: "first-root", role: .root, spkiSHA256Base64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")]
+        )
+        let secondEndpoint = Endpoint(
+            name: "Second API",
+            url: url,
+            certificates: [.init(id: "second-root", role: .root, spkiSHA256Base64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")]
+        )
+
+        let results = await Heartbeat.checkAll([firstEndpoint, secondEndpoint])
+
+        #expect(results.filter { $0.pin == nil }.count == 1)
+        #expect(results.compactMap(\.pin?.id) == ["first-root", "second-root"])
+    }
+
     @Test("non-server-trust challenges use default handling")
     func delegatesNonTrustChallengesToDefaultHandling() async {
         let delegates: [URLSessionDelegate] = [
