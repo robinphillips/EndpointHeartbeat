@@ -1,12 +1,11 @@
-import EndpointHeartbeatCore
 import Foundation
 
-struct HeartbeatReportPin: Encodable {
-    let id: String
-    let role: String
-    let spkiSHA256Base64: String
-    let state: String
-    let retireAfter: Date?
+public struct HeartbeatReportPin: Encodable {
+    public let id: String
+    public let role: String
+    public let spkiSHA256Base64: String
+    public let state: String
+    public let retireAfter: Date?
 
     init(_ pin: CertificatePin) {
         id = pin.id

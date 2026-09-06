@@ -1,19 +1,18 @@
-import EndpointHeartbeatCore
 import Foundation
 
-struct HeartbeatReportCheck: Encodable {
-    let name: String
-    let reportGroup: String?
-    let url: URL
-    let passed: Bool
-    let expectedOutcome: String
-    let acceptableStatusCodes: [Int]
-    let observedOutcome: String
-    let outcome: String
-    let outcomeDetails: String
-    let warnings: [String]
-    let pin: HeartbeatReportPin
-    let endpointCertificate: ObservedCertificate?
+public struct HeartbeatReportCheck: Encodable {
+    public let name: String
+    public let reportGroup: String?
+    public let url: URL
+    public let passed: Bool
+    public let expectedOutcome: String
+    public let acceptableStatusCodes: [Int]
+    public let observedOutcome: String
+    public let outcome: String
+    public let outcomeDetails: String
+    public let warnings: [String]
+    public let pin: HeartbeatReportPin
+    public let endpointCertificate: ObservedCertificate?
 
     init(_ result: CheckResult) {
         name = result.endpoint.name

@@ -1,27 +1,30 @@
-import EndpointHeartbeatCore
 import Foundation
 
-struct HeartbeatReport: Encodable {
-    let generatedAt: Date
-    let passedChecks: Int
-    let totalChecks: Int
-    let checks: [HeartbeatReportCheck]
+public struct HeartbeatReport: Encodable {
+    public let generatedAt: Date
+    public let passedChecks: Int
+    public let totalChecks: Int
+    public let checks: [HeartbeatReportCheck]
 
-    init(results: [CheckResult]) {
+    public init(results: [CheckResult]) {
         generatedAt = .now
         passedChecks = results.filter(\.passed).count
         totalChecks = results.count
         checks = results.map(HeartbeatReportCheck.init)
     }
 
-    func writeJSON(to url: URL) throws {
+    public func jsonData() throws -> Data {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(self).write(to: url, options: .atomic)
+        return try encoder.encode(self)
     }
 
-    func writeMarkdown(to url: URL) throws {
+    public func writeJSON(to url: URL) throws {
+        try jsonData().write(to: url, options: .atomic)
+    }
+
+    public func markdown() -> String {
         let formatter = ISO8601DateFormatter()
         var lines = [
             "# Endpoint heartbeat",
@@ -59,14 +62,18 @@ struct HeartbeatReport: Encodable {
                 lines.append("| \(check.element.passed ? "✅" : "❌") | \(check.element.displayCheckName) | \(check.element.displayPinRows.joined(separator: "<br>")) | \(check.element.displayResultRows.joined(separator: "<br>")) | \(check.element.displayExpectedOutcome) |")
             }
         }
-        try (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
+        return lines.joined(separator: "\n") + "\n"
     }
 
-    private func displayDomain(for host: String) -> String {
-        let labels = host.split(separator: ".")
-        guard labels.count > 2 else { return host }
-        return labels.suffix(2).joined(separator: ".")
+    public func writeMarkdown(to url: URL) throws {
+        try markdown().write(to: url, atomically: true, encoding: .utf8)
     }
+}
+
+private func displayDomain(for host: String) -> String {
+    let labels = host.split(separator: ".")
+    guard labels.count > 2 else { return host }
+    return labels.suffix(2).joined(separator: ".")
 }
 
 private extension HeartbeatReportCheck {

@@ -13,7 +13,29 @@ on:
         required: false
         type: string
         default: main
+      platform:
+        description: Platform used for endpoint checks.
+        required: false
+        type: string
+        default: macos
+      ios_version:
+        description: iOS Simulator version when platform is ios-simulator.
+        required: false
+        type: string
+        default: "16.4"
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform used for endpoint checks.
+        required: true
+        default: macos
+        type: choice
+        options: [macos, ios-simulator]
+      ios_version:
+        description: iOS Simulator version when platform is ios-simulator.
+        required: true
+        default: "16.4"
+        type: string
   schedule:
     - cron: "45 * * * *"
 
@@ -21,7 +43,8 @@ permissions:
   contents: read
 
 jobs:
-  heartbeat:
+  heartbeat-macos:
+    if: inputs.platform != 'ios-simulator'
     runs-on: macos-latest
     timeout-minutes: 5
     env:
@@ -47,5 +70,69 @@ jobs:
         with:
           name: heartbeat-report
           path: heartbeat-report.json
+          if-no-files-found: error
+          retention-days: 90
+
+  heartbeat-ios:
+    if: inputs.platform == 'ios-simulator'
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      CONFIG_PATH: ${{ inputs.config_path || 'Examples/heartbeat.json' }}
+      IOS_VERSION: ${{ inputs.ios_version || '16.4' }}
+      SOURCE_REF: ${{ inputs.source_ref || 'main' }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: robinphillips/EndpointHeartbeat
+          ref: ${{ env.SOURCE_REF }}
+          path: .endpoint-heartbeat
+      - name: Select Xcode 16.4
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: Install iOS Simulator runtime
+        working-directory: .endpoint-heartbeat
+        run: |
+          if ! xcrun simctl list runtimes | grep -q "iOS $IOS_VERSION"; then
+            xcodebuild -downloadPlatform iOS -buildVersion "$IOS_VERSION" -exportPath "$RUNNER_TEMP"
+            sudo xcodebuild -importPlatform "$(find "$RUNNER_TEMP" -name '*.dmg' -print -quit)"
+          fi
+      - name: Add caller configuration to iOS test bundle
+        working-directory: .endpoint-heartbeat
+        run: cp "$GITHUB_WORKSPACE/$CONFIG_PATH" Tests/EndpointHeartbeatIOSIntegrationTests/Resources/heartbeat.json
+      - name: Check endpoints on iOS Simulator
+        working-directory: .endpoint-heartbeat
+        run: |
+          runtime_id=$(xcrun simctl list runtimes -j | jq -r --arg version "$IOS_VERSION" '.runtimes[] | select(.name == "iOS " + $version) | .identifier')
+          device_id=$(xcrun simctl create "EndpointHeartbeat iOS $IOS_VERSION" "com.apple.CoreSimulator.SimDeviceType.iPhone-14" "$runtime_id")
+          trap 'xcrun simctl delete "$device_id"' EXIT
+          xcodebuild test -scheme EndpointHeartbeat-Package -only-testing:EndpointHeartbeatIOSIntegrationTests -destination "id=$device_id" -resultBundlePath "$GITHUB_WORKSPACE/heartbeat-ios.xcresult"
+      - name: Export iOS heartbeat reports
+        if: always()
+        run: |
+          xcrun xcresulttool export attachments --path heartbeat-ios.xcresult --output-path "$RUNNER_TEMP/heartbeat-reports"
+          json_report=$(find "$RUNNER_TEMP/heartbeat-reports" -name '*.json' ! -name manifest.json -print -quit)
+          markdown_report=$(find "$RUNNER_TEMP/heartbeat-reports" -name '*.md' -print -quit)
+          test -n "$json_report"
+          test -n "$markdown_report"
+          cp "$json_report" heartbeat-report.json
+          cp "$markdown_report" heartbeat-report.md
+      - name: Add report to job summary
+        if: always()
+        run: cat heartbeat-report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload heartbeat report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: heartbeat-report
+          path: heartbeat-report.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Upload iOS heartbeat result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: heartbeat-ios-result
+          path: heartbeat-ios.xcresult
           if-no-files-found: error
           retention-days: 90
