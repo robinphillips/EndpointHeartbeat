@@ -1,4 +1,4 @@
-name: Conventional Commits
+name: Pull request
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  validate-title:
     runs-on: ubuntu-latest
     steps:
       - name: Validate pull request title
@@ -19,3 +19,5 @@ jobs:
             echo "Pull request title must follow Conventional Commits."
             exit 1
           fi
+  continuous-integration:
+    uses: ./.github/workflows/ci.yml
