@@ -11,7 +11,7 @@ public struct HeartbeatReportCheck: Encodable {
     public let outcome: String
     public let outcomeDetails: String
     public let warnings: [String]
-    public let pin: HeartbeatReportPin
+    public let pin: HeartbeatReportPin?
     public let endpointCertificate: ObservedCertificate?
 
     init(_ result: CheckResult) {
@@ -19,7 +19,7 @@ public struct HeartbeatReportCheck: Encodable {
         reportGroup = result.endpoint.reportGroup
         url = result.endpoint.url
         passed = result.passed
-        expectedOutcome = result.pin.expectedOutcome.rawValue
+        expectedOutcome = result.expectedOutcome.rawValue
         acceptableStatusCodes = result.endpoint.acceptableStatusCodes
         observedOutcome = result.observedOutcome.description
         switch result.observedOutcome {
@@ -37,7 +37,7 @@ public struct HeartbeatReportCheck: Encodable {
             outcomeDetails = message
         }
         warnings = result.warnings.map(\.description)
-        pin = HeartbeatReportPin(result.pin)
+        pin = result.pin.map(HeartbeatReportPin.init)
         endpointCertificate = result.endpointCertificate
     }
 }

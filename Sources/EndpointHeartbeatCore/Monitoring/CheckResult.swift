@@ -1,13 +1,13 @@
 public struct CheckResult: Sendable {
     public let endpoint: Endpoint
-    public let pin: CertificatePin
+    public let pin: CertificatePin?
     public let observedOutcome: ObservedOutcome
     public let endpointCertificate: ObservedCertificate?
     public let warnings: [CertificateWarning]
 
     public init(
         endpoint: Endpoint,
-        pin: CertificatePin,
+        pin: CertificatePin? = nil,
         observedOutcome: ObservedOutcome,
         endpointCertificate: ObservedCertificate? = nil,
         warnings: [CertificateWarning] = []
@@ -20,6 +20,10 @@ public struct CheckResult: Sendable {
     }
 
     public var passed: Bool {
-        observedOutcome.expectedCategory == pin.expectedOutcome
+        observedOutcome.expectedCategory == expectedOutcome
+    }
+
+    public var expectedOutcome: ExpectedOutcome {
+        pin?.expectedOutcome ?? .success
     }
 }

@@ -24,7 +24,7 @@ final class HeartbeatIntegrationTests: XCTestCase {
 
         for result in results where !result.passed {
             XCTFail(
-                "\(result.endpoint.name) [\(result.pin.id)] observed \(result.observedOutcome.description); expected \(result.pin.expectedOutcome.rawValue)"
+                "\(result.endpoint.name) [\(result.pin?.id ?? "system trust")] observed \(result.observedOutcome.description); expected \(result.expectedOutcome.rawValue)"
             )
         }
     }

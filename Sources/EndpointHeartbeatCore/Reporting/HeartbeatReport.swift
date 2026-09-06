@@ -83,7 +83,8 @@ private extension HeartbeatReportCheck {
     }
 
     var displayCheckName: String {
-        expectedOutcome == "trustFailure" && !name.hasSuffix(" - expected failure")
+        guard pin != nil else { return "System trust" }
+        return expectedOutcome == "trustFailure" && !name.hasSuffix(" - expected failure")
             ? "\(name) - expected failure"
             : name
     }
@@ -111,7 +112,8 @@ private extension HeartbeatReportCheck {
     }
 
     var displayPinRows: [String] {
-        [
+        guard let pin else { return ["Not pinned"] }
+        return [
             "ID: `\(pin.id)`",
             "Role: `\(pin.role)`",
             "State: `\(pin.state)`",

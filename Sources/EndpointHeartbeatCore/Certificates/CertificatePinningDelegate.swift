@@ -2,14 +2,14 @@ import Foundation
 import Security
 
 final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
-    private let pins: [CertificatePin]
+    private let pins: [CertificatePin]?
     private let expiryWarningDays: Int
     private let lock = NSLock()
     private var storedTrustFailure: String?
     private var storedWarnings: [CertificateWarning] = []
     private var storedCertificates: [ObservedCertificate] = []
 
-    init(pins: [CertificatePin], expiryWarningDays: Int) {
+    init(pins: [CertificatePin]?, expiryWarningDays: Int) {
         self.pins = pins
         self.expiryWarningDays = expiryWarningDays
     }
@@ -85,6 +85,9 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
             return .failure("could not extract SubjectPublicKeyInfo from evaluated certificate chain")
         }
         lock.withLock { storedCertificates = observed }
+        guard pins != nil else {
+            return .success([])
+        }
         let matches = matchingPins(in: observed, now: now)
         if !matches.active.isEmpty {
             return .success(expiryWarnings(for: observed, matchedPins: matches.active + matches.retiring, now: now))
@@ -102,7 +105,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
 
     private func matchingPins(in observed: [ObservedCertificate], now: Date) -> PinMatches {
         var matches = PinMatches()
-        for pin in pins {
+        for pin in pins ?? [] {
             guard observed.contains(where: { $0.role == pin.role && $0.spkiSHA256Base64 == pin.spkiSHA256Base64 }) else { continue }
             switch pin.state {
             case .active: matches.active.append(pin)
@@ -131,7 +134,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
     }
 
     private func hasActiveReplacement(for pin: CertificatePin) -> Bool {
-        pins.contains { candidate in
+        (pins ?? []).contains { candidate in
             candidate.role == pin.role && candidate.state == .active
                     && candidate.spkiSHA256Base64 != pin.spkiSHA256Base64
         }
@@ -139,7 +142,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
 
     private func observedHashes(in observed: [ObservedCertificate]) -> [String] {
         var reported = Set<String>()
-        return pins.flatMap { pin in
+        return (pins ?? []).flatMap { pin in
             observed.filter { $0.role == pin.role }.compactMap { certificate in
                 let value = "\(pin.role.rawValue) SPKI SHA-256 was \(certificate.spkiSHA256Base64)"
                 return reported.insert(value).inserted ? value : nil
