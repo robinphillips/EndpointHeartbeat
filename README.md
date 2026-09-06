@@ -156,7 +156,7 @@ The CLI exits with status `0` when every observed result matches its expectation
 
 `EndpointHeartbeatCore` supports iOS 16 and macOS 13 or later. The `endpoint-heartbeat` command-line tool supports macOS 13 or later. Security.framework is used so the healthcheck exercises Apple's trust evaluation.
 
-Run the manual **iOS compatibility** workflow to test the core library on iOS 16.4 Simulator.
+Run the manual **iOS compatibility** workflow to test the core library on iOS 16.4 Simulator. Consumers can run configured endpoint checks on iOS Simulator by setting the reusable workflow's `platform` input to `ios-simulator` and its `ios_version` input to `16.4`.
 
 ## Compatibility
 

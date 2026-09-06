@@ -23,6 +23,11 @@ let package = Package(
             dependencies: ["EndpointHeartbeatCore"]
         ),
         .testTarget(
+            name: "EndpointHeartbeatIOSIntegrationTests",
+            dependencies: ["EndpointHeartbeatCore"],
+            resources: [.process("Resources")]
+        ),
+        .testTarget(
             name: "EndpointHeartbeatCLITests",
             dependencies: [
                 "EndpointHeartbeatCore",

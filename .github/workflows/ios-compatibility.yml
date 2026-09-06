@@ -7,22 +7,10 @@ permissions:
   contents: read
 
 jobs:
-  test-ios-16:
-    runs-on: macos-15
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-      - name: Select Xcode 16.4
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app
-      - name: Install iOS 16.4 Simulator runtime
-        run: |
-          if ! xcrun simctl list runtimes | grep -q 'iOS 16.4'; then
-            xcodebuild -downloadPlatform iOS -buildVersion 16.4 -exportPath "$RUNNER_TEMP"
-            sudo xcodebuild -importPlatform "$(find "$RUNNER_TEMP" -name '*.dmg' -print -quit)"
-          fi
-      - name: Run core tests on iOS 16.4
-        run: |
-          runtime_id=$(xcrun simctl list runtimes -j | jq -r '.runtimes[] | select(.name == "iOS 16.4") | .identifier')
-          device_id=$(xcrun simctl create "EndpointHeartbeat iOS 16.4" "com.apple.CoreSimulator.SimDeviceType.iPhone-14" "$runtime_id")
-          trap 'xcrun simctl delete "$device_id"' EXIT
-          xcodebuild test -scheme EndpointHeartbeat-Package -only-testing:EndpointHeartbeatCoreTests -destination "id=$device_id"
+  heartbeat:
+    uses: ./.github/workflows/heartbeat.yml
+    with:
+      config_path: Examples/heartbeat.json
+      ios_version: "16.4"
+      platform: ios-simulator
+      source_ref: ${{ github.sha }}
