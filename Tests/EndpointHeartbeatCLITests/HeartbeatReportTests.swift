@@ -31,6 +31,11 @@ struct HeartbeatReportTests {
         let results = [
             CheckResult(
                 endpoint: endpoint,
+                observedOutcome: .success(statusCode: 200),
+                endpointCertificate: certificate
+            ),
+            CheckResult(
+                endpoint: endpoint,
                 pin: endpoint.certificates[0],
                 observedOutcome: .success(statusCode: 200),
                 endpointCertificate: certificate
@@ -69,6 +74,7 @@ struct HeartbeatReportTests {
         #expect(markdown.contains("## Example"))
         #expect(markdown.contains("Endpoint: https://api.example.com/health"))
         #expect(markdown.contains("| --- | --- | --- | --- | --- |"))
+        #expect(markdown.contains("| ✅ | System trust | Not pinned | Outcome: Success<br>HTTP status: 200"))
         #expect(markdown.contains("Outcome: Success<br>HTTP status: 200<br>Endpoint leaf valid from: 1970-01-01T00:00:00Z<br>Endpoint leaf expires: 1970-01-01T01:00:00Z"))
         #expect(markdown.contains("Reason: No configured certificate pin matched<br>Observed root SPKI SHA-256 (Base64): `CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=`"))
         #expect(markdown.contains("Outcome: HTTP failure<br>HTTP status: 503"))

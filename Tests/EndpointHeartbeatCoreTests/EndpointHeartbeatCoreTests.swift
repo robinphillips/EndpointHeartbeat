@@ -243,7 +243,8 @@ struct EndpointHeartbeatCoreTests {
         let endpoints = [endpoint(for: "https://failure.test"), endpoint(for: "https://success.test")]
         let results = await Heartbeat.checkAll(endpoints)
 
-        #expect(results.map(\.endpoint.name) == endpoints.map(\.name))
+        #expect(results.map(\.endpoint.name) == endpoints.flatMap { [$0.name, $0.name] })
+        #expect(results.map(\.pin?.id) == [nil, "root", nil, "root"])
     }
 
     @Test("each pin has an independent expected outcome")
@@ -269,8 +270,8 @@ struct EndpointHeartbeatCoreTests {
 
         let results = await Heartbeat.checkAll([endpoint])
 
-        #expect(results.map(\.pin.id) == ["expected-trust-failure", "expected-success"])
-        #expect(results.map(\.pin.expectedOutcome) == [.trustFailure, .success])
+        #expect(results.map(\.pin?.id) == [nil, "expected-trust-failure", "expected-success"])
+        #expect(results.map(\.expectedOutcome) == [.success, .trustFailure, .success])
     }
 
     @Test("non-server-trust challenges use default handling")

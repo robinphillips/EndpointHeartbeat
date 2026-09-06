@@ -3,11 +3,11 @@ import Foundation
 public enum Heartbeat {
     static func check(
         _ endpoint: Endpoint,
-        pin: CertificatePin,
+        pin: CertificatePin?,
         sessionConfiguration configuration: URLSessionConfiguration
     ) async -> CheckResult {
         let delegate = CertificatePinningDelegate(
-            pins: [pin],
+            pins: pin.map { [$0] },
             expiryWarningDays: endpoint.certificateExpiryWarningDays
         )
         configuration.timeoutIntervalForRequest = 15
@@ -35,7 +35,9 @@ public enum Heartbeat {
 
     public static func checkAll(_ endpoints: [Endpoint]) async -> [CheckResult] {
         await withTaskGroup(of: (Int, CheckResult).self) { group in
-            let checks = endpoints.flatMap { endpoint in endpoint.certificates.map { (endpoint, $0) } }
+            let checks = endpoints.flatMap { endpoint in
+                [(endpoint, CertificatePin?.none)] + endpoint.certificates.map { (endpoint, .some($0)) }
+            }
             for (index, target) in checks.enumerated() {
                 group.addTask { (index, await check(target.0, pin: target.1, sessionConfiguration: .ephemeral)) }
             }
