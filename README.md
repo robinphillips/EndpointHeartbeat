@@ -154,7 +154,9 @@ The CLI exits with status `0` when every observed result matches its expectation
 
 ## Platform support
 
-macOS 13 or later. Security.framework is used so the healthcheck exercises Apple's trust evaluation.
+`EndpointHeartbeatCore` supports iOS 16 and macOS 13 or later. The `endpoint-heartbeat` command-line tool supports macOS 13 or later. Security.framework is used so the healthcheck exercises Apple's trust evaluation.
+
+Run the manual **iOS compatibility** workflow to test the core library on iOS 16.4 Simulator.
 
 ## Compatibility
 

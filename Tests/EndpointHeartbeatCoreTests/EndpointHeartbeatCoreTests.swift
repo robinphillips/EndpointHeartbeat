@@ -29,6 +29,16 @@ struct EndpointHeartbeatCoreTests {
         #expect(SPKIHash.sha256Base64(of: certificate) == "OExZh9XLBdCoTDwhT3cJ/9u3L6rgKOK7JrzNCXUcW4Q=")
     }
 
+    @Test("certificate validity dates decode from DER")
+    func decodesCertificateValidityDates() throws {
+        let validity = certificateValidity(in: try testCertificateData())
+        let notBefore = try #require(validity.notBefore)
+        let notAfter = try #require(validity.notAfter)
+
+        #expect(ISO8601DateFormatter().string(from: notBefore) == "2026-08-30T04:17:13Z")
+        #expect(ISO8601DateFormatter().string(from: notAfter) == "2026-08-31T04:17:13Z")
+    }
+
     @Test("decoded endpoints receive omitted defaults")
     func suppliesConfigurationDefaults() throws {
         let json = """
@@ -463,10 +473,14 @@ struct EndpointHeartbeatCoreTests {
     }
 
     private func testCertificate() throws -> SecCertificate {
-        let der = try #require(Data(base64Encoded: """
+        let der = try testCertificateData()
+        return try #require(SecCertificateCreateWithData(nil, der as CFData))
+    }
+
+    private func testCertificateData() throws -> Data {
+        try #require(Data(base64Encoded: """
         MIIDDTCCAfWgAwIBAgIUTUsP1h40Bpb4wsJjO/BbMcRWfxIwDQYJKoZIhvcNAQELBQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wHhcNMjYwODMwMDQxNzEzWhcNMjYwODMxMDQxNzEzWjAWMRQwEgYDVQQDDAtleGFtcGxlLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKmnrybCYK27d9JlLirElXJjlJJgbtoMcQ8rSMylQi21+Xx6FJH+e3XjwzMH8pBW/aif+u3Wj5HAwWJihXeP6gOfMBrV2qRgKAhGwP/BinnEWcbNLx4FrWjPVUSt8Yv0goCDdGXsJmWXoyvhxLtgOWgy6/ld0pAti0BKPzW7Ekcx7t4U3e1ddsenYG053ljd7qWtytdvoOTo/Iu5rtp0+t6SCKmzez6/YKtKVvlwFIYhRuzK/oZ/oPXrW3BhL/wAAMvvedxQFqgCKoxiaTNGvPqWyPV/AK1m15RR47eLDnCntskRBY7w9ncKZll9hHLTy4iv8EFGESewmi/oaZRXquUCAwEAAaNTMFEwHQYDVR0OBBYEFBAzOImVO4WFRS5xsiMuNBPPom2IMB8GA1UdIwQYMBaAFBAzOImVO4WFRS5xsiMuNBPPom2IMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBACVd1/cqJURaM1p/2w+r1OSAg+/WD2ZJDP2QY+KMuijhLcfd653F/t26mUwm3JxSxMk4pfSQFuGkZK9nymr3A3qAP/NImruev8Z8uNVdt/VyF377ve4tT0O34M+YwMhcOSrrmFzmrCqmg6TxoSWtvnJoJ2+ujA5H1gLChjlfjBgr6TdwRbswiSnUOwX5RqgD7SAVncSTrZ4I/CGq0b3v1vAebeHj3BX32Y59I5LARXTrlrC4XsoBdkP4yqDOEIQMUPWFKKYJuWf3l4liiFTNMlhp5wrU91JGJK0+CVHLEDPdecgWNLVosTTy/XkZUJtnLGKnVtweE4v2p2a/GYQX2M0=
         """))
-        return try #require(SecCertificateCreateWithData(nil, der as CFData))
     }
 
     private func trustedTrust(for certificate: SecCertificate) throws -> SecTrust {

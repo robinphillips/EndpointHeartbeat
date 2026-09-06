@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 @testable import EndpointHeartbeatCLI
 @testable import EndpointHeartbeatCore
@@ -107,3 +108,4 @@ struct HeartbeatReportTests {
         #expect(error.description == description)
     }
 }
+#endif
