@@ -78,6 +78,7 @@ private func displayDomain(for host: String) -> String {
 
 private extension HeartbeatReportCheck {
     var displayOrder: Int {
+        guard pin != nil else { return -1 }
         guard passed else { return 0 }
         return expectedOutcome == "trustFailure" ? 2 : 1
     }
