@@ -4,7 +4,10 @@ import PackageDescription
 
 let package = Package(
     name: "EndpointHeartbeat",
-    platforms: [.macOS(.v13)],
+    platforms: [
+        .iOS(.v16),
+        .macOS(.v13)
+    ],
     products: [
         .library(name: "EndpointHeartbeatCore", targets: ["EndpointHeartbeatCore"]),
         .executable(name: "endpoint-heartbeat", targets: ["EndpointHeartbeatCLI"])
@@ -21,7 +24,10 @@ let package = Package(
         ),
         .testTarget(
             name: "EndpointHeartbeatCLITests",
-            dependencies: ["EndpointHeartbeatCLI", "EndpointHeartbeatCore"]
+            dependencies: [
+                "EndpointHeartbeatCore",
+                .target(name: "EndpointHeartbeatCLI", condition: .when(platforms: [.macOS]))
+            ]
         )
     ]
 )
