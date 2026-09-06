@@ -31,7 +31,7 @@ jobs:
 3. Replace both `<release-tag>` values with the same published version tag.
 4. Open the Actions tab and run **Endpoint heartbeat** manually.
 
-The reusable workflow checks out the caller repository to read its configuration and the referenced Endpoint Heartbeat release to run the check. The included configuration is runnable: it checks a Let's Encrypt test endpoint with one correct and one deliberately incorrect root pin. This repository's **On commit** workflow runs continuous integration and endpoint heartbeat on every push. Endpoint heartbeat also runs hourly at 45 minutes past the hour and manually.
+The reusable workflow checks out the caller repository to read its configuration and the referenced Endpoint Heartbeat release to run the check. The included configuration is runnable: it checks a Let's Encrypt test endpoint with one correct and one deliberately incorrect root pin. This repository runs continuous integration and title validation for pull requests. After a pull request merges to `main`, **On merge** runs continuous integration and endpoint heartbeat. Endpoint heartbeat also runs hourly at 45 minutes past the hour and manually.
 
 ## Configuration
 
@@ -156,7 +156,7 @@ The CLI exits with status `0` when every observed result matches its expectation
 
 `EndpointHeartbeatCore` supports iOS 16 and macOS 13 or later. The `endpoint-heartbeat` command-line tool supports macOS 13 or later. Security.framework is used so the healthcheck exercises Apple's trust evaluation.
 
-Run the manual **iOS compatibility** workflow to test the core library on iOS 16.4 Simulator. Consumers can run configured endpoint checks on iOS Simulator by setting the reusable workflow's `platform` input to `ios-simulator` and its `ios_version` input to `16.4`.
+Run the manual **iOS compatibility** workflow to test the core library on iOS 16.4 Simulator. Consumers can run configured endpoint checks on iOS Simulator with `robinphillips/EndpointHeartbeat/.github/workflows/heartbeat-ios.yml@<release-tag>` and its `ios_version` input.
 
 ## Compatibility
 

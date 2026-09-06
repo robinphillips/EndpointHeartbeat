@@ -8,9 +8,8 @@ permissions:
 
 jobs:
   heartbeat:
-    uses: ./.github/workflows/heartbeat.yml
+    uses: ./.github/workflows/heartbeat-ios.yml
     with:
       config_path: Examples/heartbeat.json
       ios_version: "16.4"
-      platform: ios-simulator
       source_ref: ${{ github.sha }}

@@ -35,8 +35,12 @@ public enum Heartbeat {
 
     public static func checkAll(_ endpoints: [Endpoint]) async -> [CheckResult] {
         await withTaskGroup(of: (Int, CheckResult).self) { group in
+            var checkedURLs = Set<URL>()
             let checks = endpoints.flatMap { endpoint in
-                [(endpoint, CertificatePin?.none)] + endpoint.certificates.map { (endpoint, .some($0)) }
+                let systemTrustCheck = checkedURLs.insert(endpoint.url).inserted
+                    ? [(endpoint, CertificatePin?.none)]
+                    : []
+                return systemTrustCheck + endpoint.certificates.map { (endpoint, .some($0)) }
             }
             for (index, target) in checks.enumerated() {
                 group.addTask { (index, await check(target.0, pin: target.1, sessionConfiguration: .ephemeral)) }
