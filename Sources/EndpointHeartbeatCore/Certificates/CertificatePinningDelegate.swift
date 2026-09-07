@@ -3,14 +3,17 @@ import Security
 
 final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
     private let pins: [CertificatePin]?
+    private let rotationPins: [CertificatePin]
     private let expiryWarningDays: Int
     private let lock = NSLock()
     private var storedTrustFailure: String?
+    private var storedSystemTrustFailure: String?
     private var storedWarnings: [CertificateWarning] = []
     private var storedCertificates: [ObservedCertificate] = []
 
-    init(pins: [CertificatePin]?, expiryWarningDays: Int) {
+    init(pins: [CertificatePin]?, expiryWarningDays: Int, rotationPins: [CertificatePin]? = nil) {
         self.pins = pins
+        self.rotationPins = rotationPins ?? pins ?? []
         self.expiryWarningDays = expiryWarningDays
     }
 
@@ -22,6 +25,8 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
     }
 
     var trustFailure: String? { lock.withLock { storedTrustFailure } }
+    var systemTrustFailure: String? { lock.withLock { storedSystemTrustFailure } }
+    var certificates: [ObservedCertificate] { lock.withLock { storedCertificates } }
 
     var warnings: [CertificateWarning] { lock.withLock { storedWarnings } }
 
@@ -64,7 +69,9 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
         SecTrustSetVerifyDate(trust, now as CFDate)
         var evaluationError: CFError?
         guard SecTrustEvaluateWithError(trust, &evaluationError) else {
-            return .failure(evaluationError.map(String.init(describing:)) ?? "system trust evaluation failed")
+            let message = evaluationError.map(String.init(describing:)) ?? "system trust evaluation failed"
+            lock.withLock { storedSystemTrustFailure = message }
+            return .failure(message)
         }
 
         guard let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate] else {
@@ -92,7 +99,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
         if !matches.active.isEmpty {
             return .success(expiryWarnings(for: observed, matchedPins: matches.active + matches.retiring, now: now))
         }
-        if let retired = matches.retired.first {
+        if matches.retiring.isEmpty, let retired = matches.retired.first {
             return .failure("certificate pin \(retired.id) retired on \(ISO8601DateFormatter().string(from: retired.retireAfter!))")
         }
         guard !matches.retiring.isEmpty else {
@@ -134,8 +141,9 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
     }
 
     private func hasActiveReplacement(for pin: CertificatePin) -> Bool {
-        (pins ?? []).contains { candidate in
+        rotationPins.contains { candidate in
             candidate.role == pin.role && candidate.state == .active
+                    && candidate.expectedOutcome == .success
                     && candidate.spkiSHA256Base64 != pin.spkiSHA256Base64
         }
     }

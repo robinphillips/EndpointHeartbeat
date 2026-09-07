@@ -72,7 +72,39 @@ The reusable workflow checks out the caller repository to read its configuration
 
 Each pin's `expectedOutcome` defaults to `success`. `acceptableStatusCodes` defaults to every status from 200 through 299.
 
+Set a pin's `expectedOutcome` to `systemTrustFailure` when the platform is expected to reject the server certificate before pin comparison. This does not accept a pin mismatch, HTTP error, or transport failure. An unexpectedly successful connection also fails the expectation.
+
+The unpinned row has its own endpoint-level `systemTrustExpectation`, defaulting to `success`. Set it to `systemTrustFailure` as well when both the unpinned and pinned checks should expect platform rejection:
+
+```json
+{
+  "name": "Legacy OS check",
+  "url": "https://example.com/",
+  "systemTrustExpectation": "systemTrustFailure",
+  "certificates": [{
+    "id": "root",
+    "role": "root",
+    "spkiSHA256Base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "expectedOutcome": "systemTrustFailure"
+  }]
+}
+```
+
+An expected system-trust failure confirms platform rejection; it does not demonstrate that the pin was checked. For repeated entries with the same URL, the first entry supplies the unpinned row's expectation.
+
 `reportGroup` is optional. It supplies the heading for related checks in the Markdown report; otherwise the report uses the endpoint's domain.
+
+Add optional `pinSets` to an endpoint to also test an any-match connection policy:
+
+```json
+"pinSets": [{
+  "id": "supported-roots",
+  "pinIDs": ["current-root", "previous-root"],
+  "expectedOutcome": "success"
+}]
+```
+
+Members reference IDs in that endpoint's `certificates`. Each set makes its own request and succeeds when system trust passes, at least one active or not-yet-retired member matches, and the HTTP status is acceptable. Member expectations do not affect matching: the set has its own `expectedOutcome`, defaulting to `success`, with `trustFailure` and `systemTrustFailure` also supported. Individual pin checks and the unpinned check still run. Markdown and JSON reports include each set's result and members.
 
 Each endpoint requires at least one `active` certificate pin. `role` is `leaf`, `intermediate`, or `root`; `spkiSHA256Base64` is a Base64-encoded SHA-256 hash of the certificate's DER-encoded SubjectPublicKeyInfo and must decode to exactly 32 bytes. This is the same pin format as Apple's `SPKI-SHA256-BASE64`. Each pin is checked independently; `expectedOutcome` defaults to `success` and can be `trustFailure` for an intentionally unmatched pin.
 
@@ -114,7 +146,9 @@ swift run endpoint-heartbeat inspect https://api.example.com/health
 
 `validate` decodes the configuration and checks endpoint names, HTTPS URLs, certificate pin IDs, Base64 SPKI hashes, retirement dates, expiry-warning thresholds, and acceptable status codes. It does not make network requests.
 
-`check` validates the configuration, performs one HTTPS request per endpoint, verifies the system trust chain and configured certificate pins, and checks the HTTP status code. It prints a tick or cross for every endpoint, followed by any imminent certificate-expiry warnings.
+`check` validates the configuration, performs an unpinned request per distinct URL and a separate request for each configured pin, and checks the HTTP status code. Each request independently evaluates system trust. A system-trust failure never satisfies an expected pin trust failure. It prints a tick or cross for each check, followed by certificate-expiry warnings.
+
+JSON checks include a request identifier, start time, and the successfully evaluated certificate chain (including on pin mismatch). An empty chain does not describe what the server sent. Separate requests can select different trust paths; these results alone cannot establish whether the server supplied different certificates or whether intermediate fetching or caching affected evaluation.
 
 Pass `--report heartbeat-report.json` to write a machine-readable report, and `--markdown-report heartbeat-report.md` to write a Markdown summary. The scheduled workflow uploads the JSON report as a `heartbeat-report` artifact and adds the Markdown report to the GitHub Actions job summary.
 

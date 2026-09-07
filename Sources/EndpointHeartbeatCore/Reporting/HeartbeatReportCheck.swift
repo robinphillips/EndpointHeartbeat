@@ -1,6 +1,9 @@
 import Foundation
 
 public struct HeartbeatReportCheck: Encodable {
+    public let requestID: UUID
+    public let startedAt: Date
+    public let evaluatedChain: [ObservedCertificate]
     public let name: String
     public let reportGroup: String?
     public let url: URL
@@ -12,9 +15,14 @@ public struct HeartbeatReportCheck: Encodable {
     public let outcomeDetails: String
     public let warnings: [String]
     public let pin: HeartbeatReportPin?
+    public let pinSet: CertificatePinSet?
+    public let pinSetMembers: [HeartbeatReportPin]
     public let endpointCertificate: ObservedCertificate?
 
     init(_ result: CheckResult) {
+        requestID = result.requestID
+        startedAt = result.startedAt
+        evaluatedChain = result.evaluatedChain
         name = result.endpoint.name
         reportGroup = result.endpoint.reportGroup
         url = result.endpoint.url
@@ -29,6 +37,9 @@ public struct HeartbeatReportCheck: Encodable {
         case let .trustFailure(message):
             outcome = "Trust failure"
             outcomeDetails = message
+        case let .systemTrustFailure(message):
+            outcome = "System trust failure"
+            outcomeDetails = message
         case let .httpFailure(statusCode):
             outcome = "HTTP failure"
             outcomeDetails = "HTTP status: \(statusCode)"
@@ -38,6 +49,10 @@ public struct HeartbeatReportCheck: Encodable {
         }
         warnings = result.warnings.map(\.description)
         pin = result.pin.map(HeartbeatReportPin.init)
+        pinSet = result.pinSet
+        pinSetMembers = result.pinSet.map { set in
+            result.endpoint.certificates.filter { set.pinIDs.contains($0.id) }.map(HeartbeatReportPin.init)
+        } ?? []
         endpointCertificate = result.endpointCertificate
     }
 }
