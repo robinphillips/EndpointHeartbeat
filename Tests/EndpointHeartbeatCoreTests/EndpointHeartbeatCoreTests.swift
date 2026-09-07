@@ -145,10 +145,27 @@ struct EndpointHeartbeatCoreTests {
         #expect(report.markdown().contains("Pin set: roots"))
         #expect(report.checks.first?.pinSetMembers.count == 2)
         let results = await Heartbeat.checkAll([endpoint])
-        #expect(results.count == 2)
+        #expect(results.count == 4)
         #expect(results.last?.pinSet?.id == "roots")
         #expect(results.last?.expectedOutcome == .success)
-        #expect(results.allSatisfy { $0.pin == nil })
+        #expect(results.dropLast().contains { $0.pin?.id == matching.id })
+        #expect(report.checks.first?.matchedPins.isEmpty == true)
+        let matchedReport = HeartbeatReport(results: [
+            CheckResult(endpoint: endpoint, observedOutcome: .success(statusCode: 200), pinSet: set, matchedPinIDs: [matching.id])
+        ])
+        #expect(matchedReport.checks.first?.matchedPins.first?.id == matching.id)
+        #expect(matchedReport.markdown().contains("Matched pin ID: `matching`"))
+
+        let setOnlyEndpoint = Endpoint(
+            name: endpoint.name,
+            url: endpoint.url,
+            certificates: endpoint.certificates,
+            pinSets: [set],
+            individualPinChecks: false
+        )
+        let setOnlyResults = await Heartbeat.checkAll([setOnlyEndpoint])
+        #expect(setOnlyResults.count == 2)
+        #expect(setOnlyResults.allSatisfy { $0.pin == nil })
         for references in [[], ["unknown"], [missing.id, missing.id]] {
             let invalid = Endpoint(name: "API", url: endpoint.url, certificates: [missing], pinSets: [.init(id: "invalid", pinIDs: references)])
             #expect(throws: ConfigurationError.self) {

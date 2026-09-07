@@ -57,7 +57,7 @@ public enum Heartbeat {
                     ? [(endpoint, CertificatePin?.none, CertificatePinSet?.none)]
                     : []
                 return systemTrustCheck
-                    + (endpoint.pinSets.isEmpty
+                    + (endpoint.individualPinChecks
                         ? endpoint.certificates.map { (endpoint, .some($0), CertificatePinSet?.none) }
                         : [])
                     + endpoint.pinSets.map { (endpoint, CertificatePin?.none, .some($0)) }
