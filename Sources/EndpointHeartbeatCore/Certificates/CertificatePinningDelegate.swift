@@ -10,6 +10,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
     private var storedSystemTrustFailure: String?
     private var storedWarnings: [CertificateWarning] = []
     private var storedCertificates: [ObservedCertificate] = []
+    private var storedMatchedPins: [CertificatePin] = []
 
     init(pins: [CertificatePin]?, expiryWarningDays: Int, rotationPins: [CertificatePin]? = nil) {
         self.pins = pins
@@ -27,6 +28,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
     var trustFailure: String? { lock.withLock { storedTrustFailure } }
     var systemTrustFailure: String? { lock.withLock { storedSystemTrustFailure } }
     var certificates: [ObservedCertificate] { lock.withLock { storedCertificates } }
+    var matchedPins: [CertificatePin] { lock.withLock { storedMatchedPins } }
 
     var warnings: [CertificateWarning] { lock.withLock { storedWarnings } }
 
@@ -97,6 +99,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
         }
         let matches = matchingPins(in: observed, now: now)
         if !matches.active.isEmpty {
+            lock.withLock { storedMatchedPins = matches.active + matches.retiring }
             return .success(expiryWarnings(for: observed, matchedPins: matches.active + matches.retiring, now: now))
         }
         if matches.retiring.isEmpty, let retired = matches.retired.first {
@@ -107,6 +110,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, @unchecked
             return .failure("no configured certificate pin matched: \(actual)")
         }
 
+        lock.withLock { storedMatchedPins = matches.retiring }
         return .success(expiryWarnings(for: observed, matchedPins: matches.retiring, now: now))
     }
 

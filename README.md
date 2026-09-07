@@ -104,7 +104,7 @@ Add optional `pinSets` to an endpoint to also test an any-match connection polic
 }]
 ```
 
-Members reference IDs in that endpoint's `certificates`. Each set makes its own request and succeeds when system trust passes, at least one active or not-yet-retired member matches, and the HTTP status is acceptable. Member expectations do not affect matching: the set has its own `expectedOutcome`, defaulting to `success`, with `trustFailure` and `systemTrustFailure` also supported. Individual pin checks and the unpinned check still run. Markdown and JSON reports include each set's result and members.
+Members reference IDs in that endpoint's `certificates`. Each set makes its own request and succeeds when system trust passes, at least one active or not-yet-retired member matches, and the HTTP status is acceptable. Member expectations do not affect matching: the set has its own `expectedOutcome`, defaulting to `success`, with `trustFailure` and `systemTrustFailure` also supported. When an endpoint defines pin sets, the set checks replace individual pin checks; the report identifies the member or members that matched.
 
 Each endpoint requires at least one `active` certificate pin. `role` is `leaf`, `intermediate`, or `root`; `spkiSHA256Base64` is a Base64-encoded SHA-256 hash of the certificate's DER-encoded SubjectPublicKeyInfo and must decode to exactly 32 bytes. This is the same pin format as Apple's `SPKI-SHA256-BASE64`. Each pin is checked independently; `expectedOutcome` defaults to `success` and can be `trustFailure` for an intentionally unmatched pin.
 

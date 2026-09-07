@@ -74,12 +74,13 @@ jobs:
         if: always()
         run: |
           xcrun xcresulttool export attachments --path heartbeat-ios.xcresult --output-path "$RUNNER_TEMP/heartbeat-reports"
-          json_report=$(find "$RUNNER_TEMP/heartbeat-reports" -name 'heartbeat-report-*.json' -print -quit)
-          markdown_report=$(find "$RUNNER_TEMP/heartbeat-reports" -name 'heartbeat-report-*.md' -print -quit)
+          json_report=$(find "$RUNNER_TEMP/heartbeat-reports" -type f -name '*.json' ! -name manifest.json -print -quit)
+          markdown_report=$(find "$RUNNER_TEMP/heartbeat-reports" -type f -name '*.md' -print -quit)
           test -n "$json_report"
           test -n "$markdown_report"
-          cp "$json_report" "$GITHUB_WORKSPACE/$(basename "$json_report")"
-          cp "$markdown_report" "$GITHUB_WORKSPACE/$(basename "$markdown_report")"
+          report_timestamp=$(date -u +%Y%m%dT%H%M%SZ)
+          cp "$json_report" "$GITHUB_WORKSPACE/heartbeat-report-${report_timestamp}.json"
+          cp "$markdown_report" "$GITHUB_WORKSPACE/heartbeat-report-${report_timestamp}.md"
       - name: Add report to job summary
         if: always()
         run: cat heartbeat-report-*.md >> "$GITHUB_STEP_SUMMARY"
