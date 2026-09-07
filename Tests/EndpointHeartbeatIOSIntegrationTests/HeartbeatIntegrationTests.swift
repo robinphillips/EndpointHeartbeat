@@ -10,15 +10,18 @@ final class HeartbeatIntegrationTests: XCTestCase {
 
         let configuration = try ConfigurationLoader.load(from: configurationURL)
         let results = await Heartbeat.checkAll(configuration.endpoints)
-        let report = HeartbeatReport(results: results)
+        let title = ProcessInfo.processInfo.environment["REPORT_TITLE"] ?? "Endpoint heartbeat"
+        let configurationName = ProcessInfo.processInfo.environment["CONFIG_NAME"] ?? "heartbeat.json"
+        let report = HeartbeatReport(results: results, title: title, configurationName: configurationName)
+        let timestamp = reportTimestamp(report.generatedAt)
         addReportAttachment(
             data: try report.jsonData(),
-            name: "heartbeat-report.json",
+            name: "heartbeat-report-\(timestamp).json",
             uniformTypeIdentifier: "public.json"
         )
         addReportAttachment(
             data: Data(report.markdown().utf8),
-            name: "heartbeat-report.md",
+            name: "heartbeat-report-\(timestamp).md",
             uniformTypeIdentifier: "net.daringfireball.markdown"
         )
 
@@ -27,6 +30,15 @@ final class HeartbeatIntegrationTests: XCTestCase {
                 "\(result.endpoint.name) [\(result.checkID)] observed \(result.observedOutcome.description); expected \(result.expectedOutcome.rawValue)"
             )
         }
+    }
+
+    private func reportTimestamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyyMMdd'T'HHmmss'Z'"
+        return formatter.string(from: date)
     }
 
     private func addReportAttachment(data: Data, name: String, uniformTypeIdentifier: String) {

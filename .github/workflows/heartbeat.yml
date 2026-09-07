@@ -13,6 +13,10 @@ on:
         required: false
         type: string
         default: main
+      report_title:
+        description: Title written into the heartbeat report.
+        required: false
+        type: string
   workflow_dispatch:
   schedule:
     - cron: "45 * * * *"
@@ -27,6 +31,7 @@ jobs:
     env:
       CONFIG_PATH: ${{ inputs.config_path || 'Examples/heartbeat.json' }}
       SOURCE_REF: ${{ inputs.source_ref || 'main' }}
+      REPORT_TITLE: ${{ inputs.report_title || github.workflow }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -34,18 +39,23 @@ jobs:
           repository: robinphillips/EndpointHeartbeat
           ref: ${{ env.SOURCE_REF }}
           path: .endpoint-heartbeat
+      - name: Set report filenames
+        run: |
+          report_timestamp=$(date -u +%Y%m%dT%H%M%SZ)
+          echo "REPORT_JSON=heartbeat-report-${report_timestamp}.json" >> "$GITHUB_ENV"
+          echo "REPORT_MARKDOWN=heartbeat-report-${report_timestamp}.md" >> "$GITHUB_ENV"
       - name: Check endpoints
         run: >-
           swift run --package-path .endpoint-heartbeat -c release endpoint-heartbeat check --config "$CONFIG_PATH"
-          --report heartbeat-report.json --markdown-report heartbeat-report.md
+          --title "$REPORT_TITLE" --report "$REPORT_JSON" --markdown-report "$REPORT_MARKDOWN"
       - name: Add report to job summary
         if: always()
-        run: cat heartbeat-report.md >> "$GITHUB_STEP_SUMMARY"
+        run: cat "$REPORT_MARKDOWN" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload heartbeat report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: heartbeat-report
-          path: heartbeat-report.json
+          path: heartbeat-report-*.json
           if-no-files-found: error
           retention-days: 90

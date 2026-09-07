@@ -150,7 +150,7 @@ swift run endpoint-heartbeat inspect https://api.example.com/health
 
 JSON checks include a request identifier, start time, and the successfully evaluated certificate chain (including on pin mismatch). An empty chain does not describe what the server sent. Separate requests can select different trust paths; these results alone cannot establish whether the server supplied different certificates or whether intermediate fetching or caching affected evaluation.
 
-Pass `--report heartbeat-report.json` to write a machine-readable report, and `--markdown-report heartbeat-report.md` to write a Markdown summary. The scheduled workflow uploads the JSON report as a `heartbeat-report` artifact and adds the Markdown report to the GitHub Actions job summary.
+Pass `--report heartbeat-report.json` to write a machine-readable report, and `--markdown-report heartbeat-report.md` to write a Markdown summary. Use `--title` to set the report title. Reports include the title, configuration filename, and generation timestamp. The scheduled workflow uploads timestamped JSON reports as a `heartbeat-report` artifact and adds the Markdown report to the GitHub Actions job summary.
 
 `inspect` displays the evaluated certificate chain, Base64 SPKI SHA-256 hash, and expiry of every certificate.
 
