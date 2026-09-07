@@ -9,6 +9,7 @@ public enum ConfigurationError: Error, CustomStringConvertible {
     case missingRetirementDate(endpoint: String, id: String)
     case invalidExpiryWarningDays(String)
     case noStatusCodes(String)
+    case invalidPinSet(endpoint: String, id: String)
 
     public var description: String {
         switch self {
@@ -22,6 +23,7 @@ public enum ConfigurationError: Error, CustomStringConvertible {
         case let .missingRetirementDate(endpoint, id): "retiring certificate pin has no retireAfter date for \(endpoint): \(id)"
         case let .invalidExpiryWarningDays(name): "certificateExpiryWarningDays must not be negative: \(name)"
         case let .noStatusCodes(name): "acceptableStatusCodes is empty: \(name)"
+        case let .invalidPinSet(endpoint, id): "pin set must have a unique nonempty ID and nonempty, unique references to existing pins for \(endpoint): \(id)"
         }
     }
 }

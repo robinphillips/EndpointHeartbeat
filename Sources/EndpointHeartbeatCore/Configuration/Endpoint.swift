@@ -7,6 +7,8 @@ public struct Endpoint: Codable, Sendable {
     public let certificates: [CertificatePin]
     public let acceptableStatusCodes: [Int]
     public let certificateExpiryWarningDays: Int
+    public let systemTrustExpectation: SystemTrustExpectation
+    public let pinSets: [CertificatePinSet]
 
     public init(
         name: String,
@@ -14,7 +16,9 @@ public struct Endpoint: Codable, Sendable {
         url: URL,
         certificates: [CertificatePin],
         acceptableStatusCodes: [Int] = Array(200..<300),
-        certificateExpiryWarningDays: Int = 30
+        certificateExpiryWarningDays: Int = 30,
+        systemTrustExpectation: SystemTrustExpectation = .success,
+        pinSets: [CertificatePinSet] = []
     ) {
         self.name = name
         self.reportGroup = reportGroup
@@ -22,10 +26,12 @@ public struct Endpoint: Codable, Sendable {
         self.certificates = certificates
         self.acceptableStatusCodes = acceptableStatusCodes
         self.certificateExpiryWarningDays = certificateExpiryWarningDays
+        self.systemTrustExpectation = systemTrustExpectation
+        self.pinSets = pinSets
     }
 
     private enum CodingKeys: String, CodingKey {
-        case name, reportGroup, url, certificates, acceptableStatusCodes, certificateExpiryWarningDays
+        case name, reportGroup, url, certificates, acceptableStatusCodes, certificateExpiryWarningDays, systemTrustExpectation, pinSets
     }
 
     public init(from decoder: Decoder) throws {
@@ -36,5 +42,7 @@ public struct Endpoint: Codable, Sendable {
         certificates = try values.decode([CertificatePin].self, forKey: .certificates)
         acceptableStatusCodes = try values.decodeIfPresent([Int].self, forKey: .acceptableStatusCodes) ?? Array(200..<300)
         certificateExpiryWarningDays = try values.decodeIfPresent(Int.self, forKey: .certificateExpiryWarningDays) ?? 30
+        systemTrustExpectation = try values.decodeIfPresent(SystemTrustExpectation.self, forKey: .systemTrustExpectation) ?? .success
+        pinSets = try values.decodeIfPresent([CertificatePinSet].self, forKey: .pinSets) ?? []
     }
 }

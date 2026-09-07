@@ -78,14 +78,15 @@ private func displayDomain(for host: String) -> String {
 
 private extension HeartbeatReportCheck {
     var displayOrder: Int {
-        guard pin != nil else { return -1 }
+        guard pin != nil || pinSet != nil else { return -1 }
         guard passed else { return 0 }
-        return expectedOutcome == "trustFailure" ? 2 : 1
+        return expectedOutcome == "success" ? 1 : 2
     }
 
     var displayCheckName: String {
+        if let pinSet { return "Pin set: \(pinSet.id)" }
         guard pin != nil else { return "System trust" }
-        return expectedOutcome == "trustFailure" && !name.hasSuffix(" - expected failure")
+        return expectedOutcome != "success" && !name.hasSuffix(" - expected failure")
             ? "\(name) - expected failure"
             : name
     }
@@ -94,6 +95,7 @@ private extension HeartbeatReportCheck {
         switch expectedOutcome {
         case "success": displayExpectedHTTPStatus
         case "trustFailure": "trust failure"
+        case "systemTrustFailure": "system trust failure"
         default: expectedOutcome
         }
     }
@@ -113,6 +115,11 @@ private extension HeartbeatReportCheck {
     }
 
     var displayPinRows: [String] {
+        if pinSet != nil {
+            return ["Match: Any eligible pin"] + pinSetMembers.flatMap { member in
+                ["ID: `\(member.id)`", "Role: `\(member.role)`", "State: `\(member.state)`", "SPKI SHA-256 (Base64): `\(member.spkiSHA256Base64)`"]
+            }
+        }
         guard let pin else { return ["Not pinned"] }
         return [
             "ID: `\(pin.id)`",

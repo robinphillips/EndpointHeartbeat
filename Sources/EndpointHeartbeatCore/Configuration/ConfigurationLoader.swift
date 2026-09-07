@@ -27,6 +27,16 @@ public enum ConfigurationLoader {
             }
 
             var ids = Set<String>()
+            var setIDs = Set<String>()
+            let availableIDs = Set(endpoint.certificates.map(\.id))
+            for pinSet in endpoint.pinSets {
+                guard !pinSet.id.isEmpty, setIDs.insert(pinSet.id).inserted,
+                      !pinSet.pinIDs.isEmpty,
+                      Set(pinSet.pinIDs).count == pinSet.pinIDs.count,
+                      Set(pinSet.pinIDs).isSubset(of: availableIDs) else {
+                    throw ConfigurationError.invalidPinSet(endpoint: endpoint.name, id: pinSet.id)
+                }
+            }
             for certificate in endpoint.certificates {
                 guard !certificate.id.isEmpty, ids.insert(certificate.id).inserted else {
                     throw ConfigurationError.duplicateCertificateID(endpoint: endpoint.name, id: certificate.id)

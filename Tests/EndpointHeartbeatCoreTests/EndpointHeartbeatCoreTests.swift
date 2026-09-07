@@ -82,6 +82,79 @@ struct EndpointHeartbeatCoreTests {
         )
         #expect(CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .trustFailure("mismatch")).passed)
         #expect(!CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .transportFailure("timeout")).passed)
+        #expect(!CheckResult(endpoint: endpoint, pin: pin, observedOutcome: .systemTrustFailure("expired")).passed)
+    }
+
+    @Test("system trust expectations reject pin mismatches and unexpected success")
+    func systemTrustFailureExpectationsAreExplicit() throws {
+        let json = """
+        {"endpoints":[{"name":"Legacy API","url":"https://example.com","systemTrustExpectation":"systemTrustFailure","certificates":[{"id":"root","role":"root","spkiSHA256Base64":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","expectedOutcome":"systemTrustFailure"}]}]}
+        """
+        let configuration = try JSONDecoder().decode(HeartbeatConfiguration.self, from: Data(json.utf8))
+        try ConfigurationLoader.validate(configuration)
+        let endpoint = try #require(configuration.endpoints.first)
+        let pin = try #require(endpoint.certificates.first)
+        let outcomes: [(ObservedOutcome, Bool)] = [
+            (.systemTrustFailure("untrusted root"), true),
+            (.trustFailure("pin mismatch"), false),
+            (.success(statusCode: 200), false),
+            (.httpFailure(statusCode: 503), false),
+            (.transportFailure("timeout"), false)
+        ]
+        for (outcome, expectedPass) in outcomes {
+            for target in [CertificatePin?.none, pin] {
+                let result = CheckResult(endpoint: endpoint, pin: target, observedOutcome: outcome)
+                #expect(result.passed == expectedPass)
+            }
+        }
+        let report = HeartbeatReport(results: [
+            CheckResult(endpoint: endpoint, observedOutcome: .systemTrustFailure("untrusted root"))
+        ])
+        #expect(report.markdown().contains("| system trust failure |"))
+        let reportJSON = try #require(JSONSerialization.jsonObject(with: report.jsonData()) as? [String: Any])
+        let checks = try #require(reportJSON["checks"] as? [[String: Any]])
+        #expect(checks.first?["expectedOutcome"] as? String == "systemTrustFailure")
+    }
+
+    @Test("pin sets match any member independently and reject invalid references")
+    func pinSetsMatchAnyMemberIndependently() async throws {
+        let certificate = try testCertificate()
+        let hash = try #require(SPKIHash.sha256Base64(of: certificate))
+        let matching = CertificatePin(id: "matching", role: .root, spkiSHA256Base64: hash, expectedOutcome: .trustFailure)
+        let missing = rootPin()
+        let set = CertificatePinSet(id: "roots", pinIDs: [missing.id, matching.id])
+        let endpoint = Endpoint(name: "API", url: try #require(URL(string: "https://success.test")), certificates: [missing, matching], pinSets: [set])
+        try ConfigurationLoader.validate(.init(endpoints: [endpoint]))
+        let trust = try trustedTrust(for: certificate)
+        await SystemClock.withCurrentDate(Self.validCertificateDate) {
+            let delegate = CertificatePinningDelegate(pins: [missing, matching], expiryWarningDays: 30)
+            #expect(delegate.failureMessage(for: trust) == nil)
+            let noMatch = CertificatePinningDelegate(pins: [missing], expiryWarningDays: 30)
+            #expect(noMatch.failureMessage(for: trust) != nil)
+            let retired = CertificatePin(id: "expired", role: .root, spkiSHA256Base64: hash, state: .retiring, retireAfter: Self.validCertificateDate.addingTimeInterval(-60))
+            let retiring = CertificatePin(id: "eligible", role: .root, spkiSHA256Base64: hash, state: .retiring, retireAfter: Self.validCertificateDate.addingTimeInterval(60))
+            let rotating = CertificatePinningDelegate(pins: [retired, retiring], expiryWarningDays: 30)
+            #expect(rotating.failureMessage(for: trust) == nil)
+            let expiredSet = CertificatePinningDelegate(pins: [retired], expiryWarningDays: 30)
+            #expect(expiredSet.failureMessage(for: trust) != nil)
+        }
+        let result = CheckResult(endpoint: endpoint, observedOutcome: .success(statusCode: 200), pinSet: set)
+        #expect(result.passed)
+        let report = HeartbeatReport(results: [result])
+        #expect(report.markdown().contains("Pin set: roots"))
+        #expect(report.checks.first?.pinSetMembers.count == 2)
+        let results = await Heartbeat.checkAll([endpoint])
+        #expect(results.count == 4)
+        #expect(results.last?.pinSet?.id == "roots")
+        #expect(results.last?.expectedOutcome == .success)
+        for references in [[], ["unknown"], [missing.id, missing.id]] {
+            let invalid = Endpoint(name: "API", url: endpoint.url, certificates: [missing], pinSets: [.init(id: "invalid", pinIDs: references)])
+            #expect(throws: ConfigurationError.self) {
+                try ConfigurationLoader.validate(.init(endpoints: [invalid]))
+            }
+        }
+        let decoded = try JSONDecoder().decode(CertificatePinSet.self, from: Data(#"{"id":"roots","pinIDs":["root"]}"#.utf8))
+        #expect(decoded.expectedOutcome == .success)
     }
 
     @Test("duplicate endpoint names are rejected")
@@ -321,11 +394,14 @@ struct EndpointHeartbeatCoreTests {
                 expectedRootHash: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
             )
             #expect(mismatchingDelegate.failureMessage(for: trust)?.contains("no configured certificate pin matched") == true)
+            #expect(mismatchingDelegate.systemTrustFailure == nil)
+            #expect(mismatchingDelegate.certificates.count == 1)
         }
 
         await SystemClock.withCurrentDate(Self.expiredCertificateDate) {
             let expiredDelegate = CertificatePinningDelegate(expectedRootHash: expectedHash)
             #expect(expiredDelegate.failureMessage(for: trust) != nil)
+            #expect(expiredDelegate.systemTrustFailure != nil)
         }
     }
 
@@ -396,6 +472,26 @@ struct EndpointHeartbeatCoreTests {
         await SystemClock.withCurrentDate(Self.validCertificateDate) {
             #expect(delegate.failureMessage(for: trust) == nil)
             #expect(delegate.warnings.isEmpty)
+        }
+    }
+
+    @Test("rotation context suppresses retiring warnings without accepting another pin")
+    func rotationContextDoesNotBroadenPinAcceptance() async throws {
+        let certificate = try testCertificate()
+        let hash = try #require(SPKIHash.sha256Base64(of: certificate))
+        let retiring = CertificatePin(
+            id: "retiring", role: .root, spkiSHA256Base64: hash,
+            state: .retiring, retireAfter: Self.validCertificateDate.addingTimeInterval(3_600)
+        )
+        let replacement = rootPin()
+        let context = [retiring, replacement]
+        let retiringDelegate = CertificatePinningDelegate(pins: [retiring], expiryWarningDays: 30, rotationPins: context)
+        let replacementDelegate = CertificatePinningDelegate(pins: [replacement], expiryWarningDays: 30, rotationPins: context)
+        let trust = try trustedTrust(for: certificate)
+        await SystemClock.withCurrentDate(Self.validCertificateDate) {
+            #expect(retiringDelegate.failureMessage(for: trust) == nil)
+            #expect(retiringDelegate.warnings.isEmpty)
+            #expect(replacementDelegate.failureMessage(for: trust) != nil)
         }
     }
 
