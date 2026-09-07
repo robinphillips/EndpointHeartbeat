@@ -13,6 +13,10 @@ on:
         required: false
         type: string
         default: main
+      report_title:
+        description: Title written into the heartbeat report.
+        required: false
+        type: string
       ios_version:
         description: iOS Simulator version used for endpoint checks.
         required: false
@@ -37,6 +41,7 @@ jobs:
       CONFIG_PATH: ${{ inputs.config_path || 'Examples/heartbeat.json' }}
       IOS_VERSION: ${{ inputs.ios_version || '16.4' }}
       SOURCE_REF: ${{ inputs.source_ref || 'main' }}
+      REPORT_TITLE: ${{ inputs.report_title || github.workflow }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -56,6 +61,8 @@ jobs:
       - name: Add caller configuration to iOS test bundle
         working-directory: .endpoint-heartbeat
         run: cp "$GITHUB_WORKSPACE/$CONFIG_PATH" Tests/EndpointHeartbeatIOSIntegrationTests/Resources/heartbeat.json
+      - name: Set report configuration name
+        run: echo "CONFIG_NAME=$(basename "$CONFIG_PATH")" >> "$GITHUB_ENV"
       - name: Check endpoints on iOS Simulator
         working-directory: .endpoint-heartbeat
         run: |
@@ -67,21 +74,21 @@ jobs:
         if: always()
         run: |
           xcrun xcresulttool export attachments --path heartbeat-ios.xcresult --output-path "$RUNNER_TEMP/heartbeat-reports"
-          json_report=$(find "$RUNNER_TEMP/heartbeat-reports" -name '*.json' ! -name manifest.json -print -quit)
-          markdown_report=$(find "$RUNNER_TEMP/heartbeat-reports" -name '*.md' -print -quit)
+          json_report=$(find "$RUNNER_TEMP/heartbeat-reports" -name 'heartbeat-report-*.json' -print -quit)
+          markdown_report=$(find "$RUNNER_TEMP/heartbeat-reports" -name 'heartbeat-report-*.md' -print -quit)
           test -n "$json_report"
           test -n "$markdown_report"
-          cp "$json_report" heartbeat-report.json
-          cp "$markdown_report" heartbeat-report.md
+          cp "$json_report" "$GITHUB_WORKSPACE/$(basename "$json_report")"
+          cp "$markdown_report" "$GITHUB_WORKSPACE/$(basename "$markdown_report")"
       - name: Add report to job summary
         if: always()
-        run: cat heartbeat-report.md >> "$GITHUB_STEP_SUMMARY"
+        run: cat heartbeat-report-*.md >> "$GITHUB_STEP_SUMMARY"
       - name: Upload heartbeat report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: heartbeat-report
-          path: heartbeat-report.json
+          path: heartbeat-report-*.json
           if-no-files-found: error
           retention-days: 90
       - name: Upload iOS heartbeat result

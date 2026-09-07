@@ -57,7 +57,12 @@ struct HeartbeatReportTests {
                 observedOutcome: .transportFailure("offline")
             )
         ]
-        let report = HeartbeatReport(results: results)
+        let report = HeartbeatReport(
+            results: results,
+            title: "Test workflow",
+            configurationName: "test-config.json",
+            generatedAt: Date(timeIntervalSince1970: 7_200)
+        )
         let directory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         let markdownURL = directory.appendingPathComponent("heartbeat-report-\(UUID().uuidString).md")
         let jsonURL = directory.appendingPathComponent("heartbeat-report-\(UUID().uuidString).json")
@@ -71,7 +76,9 @@ struct HeartbeatReportTests {
 
         let markdown = try String(contentsOf: markdownURL)
         let json = try String(contentsOf: jsonURL)
-        #expect(markdown.contains("## Example"))
+        #expect(markdown.contains("# Test workflow"))
+        #expect(markdown.contains("Configuration: test-config.json"))
+        #expect(markdown.contains("Generated: 1970-01-01T02:00:00Z"))
         #expect(markdown.contains("Endpoint: https://api.example.com/health"))
         #expect(markdown.contains("| --- | --- | --- | --- | --- |"))
         #expect(markdown.contains("| ✅ | System trust | Not pinned | Outcome: Success<br>HTTP status: 200"))
@@ -83,6 +90,7 @@ struct HeartbeatReportTests {
         #expect(markdown.contains("Outcome: HTTP failure<br>HTTP status: 503"))
         #expect(markdown.contains("Outcome: Transport failure<br>offline"))
         #expect(json.contains("\"endpointCertificate\""))
+        #expect(json.contains("\"configurationName\" : \"test-config.json\""))
         #expect(json.contains("\"notBefore\" : \"1970-01-01T00:00:00Z\""))
     }
 

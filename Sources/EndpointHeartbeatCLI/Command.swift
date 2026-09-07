@@ -21,9 +21,14 @@ enum EndpointHeartbeatCommand {
 
         switch command {
         case "check":
-            let configuration = try ConfigurationLoader.load(from: configURL(in: arguments))
+            let configurationURL = try configURL(in: arguments)
+            let configuration = try ConfigurationLoader.load(from: configurationURL)
             let results = await Heartbeat.checkAll(configuration.endpoints)
-            let report = HeartbeatReport(results: results)
+            let report = HeartbeatReport(
+                results: results,
+                title: reportTitle(in: arguments),
+                configurationName: configurationURL.lastPathComponent
+            )
             if let reportURL = outputURL(for: "--report", in: arguments) {
                 try report.writeJSON(to: reportURL)
             }
@@ -81,10 +86,17 @@ enum EndpointHeartbeatCommand {
         return URL(fileURLWithPath: arguments[flagIndex + 1])
     }
 
+    private static func reportTitle(in arguments: [String]) -> String {
+        guard let index = arguments.firstIndex(of: "--title"), arguments.indices.contains(index + 1) else {
+            return "Endpoint heartbeat"
+        }
+        return arguments[index + 1]
+    }
+
     private static func printUsage() {
         print("""
         Usage:
-          endpoint-heartbeat check --config <file.json> [--report <file.json>] [--markdown-report <file.md>]
+          endpoint-heartbeat check --config <file.json> [--title <title>] [--report <file.json>] [--markdown-report <file.md>]
           endpoint-heartbeat validate --config <file.json>
           endpoint-heartbeat inspect <https-url>
         """)

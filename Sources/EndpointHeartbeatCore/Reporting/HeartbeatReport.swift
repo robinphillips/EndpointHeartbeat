@@ -1,13 +1,22 @@
 import Foundation
 
 public struct HeartbeatReport: Encodable {
+    public let title: String
+    public let configurationName: String
     public let generatedAt: Date
     public let passedChecks: Int
     public let totalChecks: Int
     public let checks: [HeartbeatReportCheck]
 
-    public init(results: [CheckResult]) {
-        generatedAt = .now
+    public init(
+        results: [CheckResult],
+        title: String = "Endpoint heartbeat",
+        configurationName: String = "heartbeat.json",
+        generatedAt: Date = .now
+    ) {
+        self.title = title
+        self.configurationName = configurationName
+        self.generatedAt = generatedAt
         passedChecks = results.filter(\.passed).count
         totalChecks = results.count
         checks = results.map(HeartbeatReportCheck.init)
@@ -27,8 +36,9 @@ public struct HeartbeatReport: Encodable {
     public func markdown() -> String {
         let formatter = ISO8601DateFormatter()
         var lines = [
-            "# Endpoint heartbeat",
+            "# \(title)",
             "",
+            "Configuration: \(configurationName)",
             "Generated: \(formatter.string(from: generatedAt))",
             "",
             "**\(passedChecks)/\(totalChecks) checks passed**",
