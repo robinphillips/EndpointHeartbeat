@@ -3,6 +3,8 @@ public enum ConfigurationError: Error, CustomStringConvertible {
     case duplicateName(String)
     case nonHTTPSURL(String)
     case noCertificates(String)
+    case noPinChecks(String)
+    case conflictingSystemTrustExpectations(endpoint: String, otherEndpoint: String)
     case duplicateCertificateID(endpoint: String, id: String)
     case invalidHash(endpoint: String, id: String)
     case noActiveCertificate(String)
@@ -17,6 +19,8 @@ public enum ConfigurationError: Error, CustomStringConvertible {
         case let .duplicateName(name): "endpoint name is duplicated: \(name)"
         case let .nonHTTPSURL(name): "endpoint must use HTTPS: \(name)"
         case let .noCertificates(name): "endpoint has no certificate pins: \(name)"
+        case let .noPinChecks(name): "endpoint must enable individualPinChecks or define at least one pin set: \(name)"
+        case let .conflictingSystemTrustExpectations(endpoint, otherEndpoint): "endpoints sharing a URL must have the same systemTrustExpectation and acceptableStatusCodes: \(endpoint), \(otherEndpoint)"
         case let .duplicateCertificateID(endpoint, id): "certificate pin ID is duplicated for \(endpoint): \(id)"
         case let .invalidHash(endpoint, id): "certificate pin SPKI SHA-256 must be Base64-encoded for \(endpoint): \(id)"
         case let .noActiveCertificate(name): "endpoint has no active certificate pin: \(name)"
