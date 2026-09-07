@@ -121,7 +121,18 @@ private extension HeartbeatReportCheck {
     }
 
     var displayResultRows: [String] {
-        ["Outcome: \(outcome)"] + displayOutcomeDetails + displayCertificateValidity + warnings.map { "⚠️ \($0)" }
+        ["Outcome: \(outcome)"] + displayOutcomeDetails + displayMatchedPinRows + displayCertificateValidity + warnings.map { "⚠️ \($0)" }
+    }
+
+    var displayMatchedPinRows: [String] {
+        matchedPins.flatMap { pin in
+            [
+                "Matched pin ID: `\(pin.id)`",
+                "Matched pin role: `\(pin.role)`",
+                "Matched pin state: `\(pin.state)`",
+                "Matched pin SPKI SHA-256 (Base64): `\(pin.spkiSHA256Base64)`"
+            ]
+        }
     }
 
     var displayPinRows: [String] {

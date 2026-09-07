@@ -9,6 +9,7 @@ public struct Endpoint: Codable, Sendable {
     public let certificateExpiryWarningDays: Int
     public let systemTrustExpectation: SystemTrustExpectation
     public let pinSets: [CertificatePinSet]
+    public let individualPinChecks: Bool
 
     public init(
         name: String,
@@ -18,7 +19,8 @@ public struct Endpoint: Codable, Sendable {
         acceptableStatusCodes: [Int] = Array(200..<300),
         certificateExpiryWarningDays: Int = 30,
         systemTrustExpectation: SystemTrustExpectation = .success,
-        pinSets: [CertificatePinSet] = []
+        pinSets: [CertificatePinSet] = [],
+        individualPinChecks: Bool = true
     ) {
         self.name = name
         self.reportGroup = reportGroup
@@ -28,10 +30,11 @@ public struct Endpoint: Codable, Sendable {
         self.certificateExpiryWarningDays = certificateExpiryWarningDays
         self.systemTrustExpectation = systemTrustExpectation
         self.pinSets = pinSets
+        self.individualPinChecks = individualPinChecks
     }
 
     private enum CodingKeys: String, CodingKey {
-        case name, reportGroup, url, certificates, acceptableStatusCodes, certificateExpiryWarningDays, systemTrustExpectation, pinSets
+        case name, reportGroup, url, certificates, acceptableStatusCodes, certificateExpiryWarningDays, systemTrustExpectation, pinSets, individualPinChecks
     }
 
     public init(from decoder: Decoder) throws {
@@ -44,5 +47,6 @@ public struct Endpoint: Codable, Sendable {
         certificateExpiryWarningDays = try values.decodeIfPresent(Int.self, forKey: .certificateExpiryWarningDays) ?? 30
         systemTrustExpectation = try values.decodeIfPresent(SystemTrustExpectation.self, forKey: .systemTrustExpectation) ?? .success
         pinSets = try values.decodeIfPresent([CertificatePinSet].self, forKey: .pinSets) ?? []
+        individualPinChecks = try values.decodeIfPresent(Bool.self, forKey: .individualPinChecks) ?? true
     }
 }
