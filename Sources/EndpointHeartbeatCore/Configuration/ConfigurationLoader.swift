@@ -14,10 +14,14 @@ public enum ConfigurationLoader {
         guard !configuration.endpoints.isEmpty else { throw ConfigurationError.empty }
 
         var names = Set<String>()
+        var endpointsByURL: [URL: Endpoint] = [:]
         for endpoint in configuration.endpoints {
             guard names.insert(endpoint.name).inserted else { throw ConfigurationError.duplicateName(endpoint.name) }
             guard endpoint.url.scheme?.lowercased() == "https" else { throw ConfigurationError.nonHTTPSURL(endpoint.name) }
             guard !endpoint.certificates.isEmpty else { throw ConfigurationError.noCertificates(endpoint.name) }
+            guard endpoint.individualPinChecks || !endpoint.pinSets.isEmpty else {
+                throw ConfigurationError.noPinChecks(endpoint.name)
+            }
             guard endpoint.certificateExpiryWarningDays >= 0 else {
                 throw ConfigurationError.invalidExpiryWarningDays(endpoint.name)
             }
@@ -47,6 +51,16 @@ public enum ConfigurationLoader {
                 guard certificate.state != .retiring || certificate.retireAfter != nil else {
                     throw ConfigurationError.missingRetirementDate(endpoint: endpoint.name, id: certificate.id)
                 }
+            }
+            if let otherEndpoint = endpointsByURL[endpoint.url] {
+                guard endpoint.systemTrustExpectation == otherEndpoint.systemTrustExpectation,
+                      Set(endpoint.acceptableStatusCodes) == Set(otherEndpoint.acceptableStatusCodes) else {
+                    throw ConfigurationError.conflictingSystemTrustExpectations(
+                        endpoint: endpoint.name, otherEndpoint: otherEndpoint.name
+                    )
+                }
+            } else {
+                endpointsByURL[endpoint.url] = endpoint
             }
         }
     }

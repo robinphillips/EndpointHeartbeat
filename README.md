@@ -90,7 +90,7 @@ The unpinned row has its own endpoint-level `systemTrustExpectation`, defaulting
 }
 ```
 
-An expected system-trust failure confirms platform rejection; it does not demonstrate that the pin was checked. For repeated entries with the same URL, the first entry supplies the unpinned row's expectation.
+An expected system-trust failure confirms platform rejection; it does not demonstrate that the pin was checked. Repeated entries with the same URL share one unpinned check and must specify the same `systemTrustExpectation` and the same set of `acceptableStatusCodes`. Conflicting expectations are rejected during validation; status-code ordering and duplicates do not matter. Individual pin and pin-set expectations may differ.
 
 `reportGroup` is optional. It supplies the heading for related checks in the Markdown report; otherwise the report uses the endpoint's domain.
 
@@ -144,7 +144,7 @@ swift run endpoint-heartbeat check --config Examples/heartbeat.json
 swift run endpoint-heartbeat inspect https://api.example.com/health
 ```
 
-`validate` decodes the configuration and checks endpoint names, HTTPS URLs, certificate pin IDs, Base64 SPKI hashes, retirement dates, expiry-warning thresholds, and acceptable status codes. It does not make network requests.
+`validate` decodes the configuration and checks endpoint names, HTTPS URLs, certificate pin IDs, Base64 SPKI hashes, retirement dates, expiry-warning thresholds, and acceptable status codes. Each endpoint must enable individual pin checks or define at least one pin set. Entries sharing a URL must have consistent unpinned expectations. It does not make network requests.
 
 `check` validates the configuration, performs an unpinned request per distinct URL and a separate request for each configured pin, and checks the HTTP status code. Each request independently evaluates system trust. A system-trust failure never satisfies an expected pin trust failure. It prints a tick or cross for each check, followed by certificate-expiry warnings.
 
