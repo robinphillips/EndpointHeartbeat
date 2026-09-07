@@ -18,6 +18,7 @@ public struct HeartbeatReportCheck: Encodable {
     public let pinSet: CertificatePinSet?
     public let pinSetMembers: [HeartbeatReportPin]
     public let matchedPinIDs: [String]
+    public let matchedPins: [HeartbeatReportPin]
     public let endpointCertificate: ObservedCertificate?
 
     init(_ result: CheckResult) {
@@ -52,6 +53,7 @@ public struct HeartbeatReportCheck: Encodable {
         pin = result.pin.map(HeartbeatReportPin.init)
         pinSet = result.pinSet
         matchedPinIDs = result.matchedPinIDs
+        matchedPins = result.endpoint.certificates.filter { result.matchedPinIDs.contains($0.id) }.map(HeartbeatReportPin.init)
         pinSetMembers = result.pinSet.map { set in
             result.endpoint.certificates.filter { set.pinIDs.contains($0.id) }.map(HeartbeatReportPin.init)
         } ?? []
