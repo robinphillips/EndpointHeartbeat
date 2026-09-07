@@ -129,6 +129,7 @@ struct EndpointHeartbeatCoreTests {
         await SystemClock.withCurrentDate(Self.validCertificateDate) {
             let delegate = CertificatePinningDelegate(pins: [missing, matching], expiryWarningDays: 30)
             #expect(delegate.failureMessage(for: trust) == nil)
+            #expect(delegate.matchedPins.map(\.id) == ["matching"])
             let noMatch = CertificatePinningDelegate(pins: [missing], expiryWarningDays: 30)
             #expect(noMatch.failureMessage(for: trust) != nil)
             let retired = CertificatePin(id: "expired", role: .root, spkiSHA256Base64: hash, state: .retiring, retireAfter: Self.validCertificateDate.addingTimeInterval(-60))
@@ -144,9 +145,10 @@ struct EndpointHeartbeatCoreTests {
         #expect(report.markdown().contains("Pin set: roots"))
         #expect(report.checks.first?.pinSetMembers.count == 2)
         let results = await Heartbeat.checkAll([endpoint])
-        #expect(results.count == 4)
+        #expect(results.count == 2)
         #expect(results.last?.pinSet?.id == "roots")
         #expect(results.last?.expectedOutcome == .success)
+        #expect(results.allSatisfy { $0.pin == nil })
         for references in [[], ["unknown"], [missing.id, missing.id]] {
             let invalid = Endpoint(name: "API", url: endpoint.url, certificates: [missing], pinSets: [.init(id: "invalid", pinIDs: references)])
             #expect(throws: ConfigurationError.self) {

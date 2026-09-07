@@ -126,7 +126,8 @@ private extension HeartbeatReportCheck {
 
     var displayPinRows: [String] {
         if pinSet != nil {
-            return ["Match: Any eligible pin"] + pinSetMembers.flatMap { member in
+            let matched = matchedPinIDs.isEmpty ? "None" : matchedPinIDs.joined(separator: ", ")
+            return ["Matched pin IDs: `\(matched)`"] + pinSetMembers.flatMap { member in
                 ["ID: `\(member.id)`", "Role: `\(member.role)`", "State: `\(member.state)`", "SPKI SHA-256 (Base64): `\(member.spkiSHA256Base64)`"]
             }
         }
