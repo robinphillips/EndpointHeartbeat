@@ -23,7 +23,8 @@ public enum Heartbeat {
             CheckResult(
                 endpoint: endpoint, pin: pin, observedOutcome: outcome,
                 endpointCertificate: delegate.observedCertificate(for: .leaf), warnings: delegate.warnings,
-                requestID: requestID, startedAt: startedAt, evaluatedChain: delegate.certificates, pinSet: pinSet
+                requestID: requestID, startedAt: startedAt, evaluatedChain: delegate.certificates,
+                pinSet: pinSet, matchedPinIDs: delegate.matchedPins.map(\.id)
             )
         }
 
@@ -56,7 +57,9 @@ public enum Heartbeat {
                     ? [(endpoint, CertificatePin?.none, CertificatePinSet?.none)]
                     : []
                 return systemTrustCheck
-                    + endpoint.certificates.map { (endpoint, .some($0), CertificatePinSet?.none) }
+                    + (endpoint.pinSets.isEmpty
+                        ? endpoint.certificates.map { (endpoint, .some($0), CertificatePinSet?.none) }
+                        : [])
                     + endpoint.pinSets.map { (endpoint, CertificatePin?.none, .some($0)) }
             }
             for (index, target) in checks.enumerated() {

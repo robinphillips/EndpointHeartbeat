@@ -7,6 +7,7 @@ public struct CheckResult: Sendable {
     public let endpoint: Endpoint
     public let pin: CertificatePin?
     public let pinSet: CertificatePinSet?
+    public let matchedPinIDs: [String]
     public var checkID: String { pinSet?.id ?? pin?.id ?? "system trust" }
     public let observedOutcome: ObservedOutcome
     public let endpointCertificate: ObservedCertificate?
@@ -21,7 +22,8 @@ public struct CheckResult: Sendable {
         requestID: UUID = UUID(),
         startedAt: Date = .now,
         evaluatedChain: [ObservedCertificate] = [],
-        pinSet: CertificatePinSet? = nil
+        pinSet: CertificatePinSet? = nil,
+        matchedPinIDs: [String] = []
     ) {
         self.requestID = requestID
         self.startedAt = startedAt
@@ -29,6 +31,7 @@ public struct CheckResult: Sendable {
         self.endpoint = endpoint
         self.pin = pin
         self.pinSet = pinSet
+        self.matchedPinIDs = matchedPinIDs
         self.observedOutcome = observedOutcome
         self.endpointCertificate = endpointCertificate
         self.warnings = warnings
